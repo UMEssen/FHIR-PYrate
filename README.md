@@ -11,13 +11,20 @@
 
 This package is meant to provide a simple abstraction to query and structure FHIR resources as
 pandas DataFrames. There are four main classes:
-* [Ahoy](fhir_pyrate/ahoy.py): Authenticate on the FHIR API.
+* [Ahoy](fhir_pyrate/ahoy.py): Authenticate on the FHIR API
+([Example 2](examples/2-condition-to-imaging-study.ipynb)).
 * [Pirate](fhir_pyrate/pirate.py): Extract and search for data via FHIR
-  API.
+  API
+  (
+  [Example 1](examples/1-simple-json-to-df.ipynb),
+  [2](examples/2-condition-to-imaging-study.ipynb),
+  [3](examples/3-observation-for-condition.ipynb) &
+  [4](examples/4-patients-for-diagnostic-report.ipynb)
+  ).
 * [Miner](fhir_pyrate/miner.py): Search for keywords or phrases
-  within Diagnostic Report.
+  within Diagnostic Report ([Example 4](examples/4-patients-for-diagnostic-report.ipynb)).
 * [DicomDownloader](fhir_pyrate/dicom_downloader.py): Download complete studies or
-  series.
+  series ([Example 2](examples/2-condition-to-imaging-study.ipynb)).
 
 <br />
 <div align="center">
@@ -27,7 +34,25 @@ pandas DataFrames. There are four main classes:
 <!-- TABLE OF CONTENTS -->
 Table of Contents:
 
-[[_TOC_]]
+* [Install (In Progress)](#install-in-progress)
+   * [Either Pip](#either-pip)
+   * [Or Within Poetry](#or-within-poetry)
+* [Run Tests](#run-tests)
+* [Explanations &amp; Examples](#explanations--examples)
+   * [<a href="fhir_pyrate/ahoy.py">Ahoy</a>](#ahoy)
+   * [<a href="fhir_pyrate/pirate.py">Pirate</a>](#pirate)
+      * [<a href="fhir_pyrate/pirate.py">sail_through_search_space</a>](#sail_through_search_space)
+      * [<a href="fhir_pyrate/pirate.py">trade_rows_for_bundles</a>](#trade_rows_for_bundles)
+      * [<a href="fhir_pyrate/pirate.py">bundles_to_dataframe</a>](#bundles_to_dataframe)
+      * [<a href="fhir_pyrate/pirate.py">query_to_dataframe</a>](#query_to_dataframe)
+      * [<a href="fhir_pyrate/pirate.py">trade_rows_for_dataframe</a>](#trade_rows_for_dataframe)
+   * [<a href="fhir_pyrate/miner.py">Miner</a>](#miner)
+   * [<a href="fhir_pyrate/dicom_downloader.py">DicomDownloader</a>](#dicomdownloader)
+* [Contributing](#contributing)
+* [Authors and acknowledgment](#authors-and-acknowledgment)
+* [License](#license)
+* [Project status](#project-status)
+
 
 ## Install (In Progress)
 
@@ -298,6 +323,7 @@ You can find an example in [Example 3](examples/3-patients-for-condition.ipynb).
 <div align="center">
   <img src="images/miner.svg" alt="Logo" width="642" height="219">
 </div>
+<br />
 
 The **Miner** takes a DataFrame and searches it for a particular regular expression
 with the help of [SpaCy](https://spacy.io/).
@@ -322,6 +348,15 @@ df_filtered = miner.nlp_on_dataframe(
 ```
 
 ### [DicomDownloader](fhir_pyrate/dicom_downloader.py)
+
+At our institute we have a DicomWebAdapter app that can be used to download studies and series
+from the PACS system of our hospital. The DicomDownloader uses the
+[DicomWebClient](https://dicomweb-client.readthedocs.io/en/latest/usage.html) with a specific
+internal URL for each PACS to connect and download the images.
+We could not find a public system that was offering anything similar, so this class has only
+been tested on our internal FHIR server.
+In case you have questions or you would like some particular features to be able to use this at
+your institute, please do not hesitate and contact us, or write a pull request!
 
 The **DicomDownloader** downloads a complete Study (StudyInstanceUID) or a specific series (
 StudyInstanceUID + SeriesInstanceUID).
