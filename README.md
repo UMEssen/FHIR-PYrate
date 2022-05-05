@@ -15,12 +15,10 @@ pandas DataFrames. There are four main classes:
 ([Example 2](examples/2-condition-to-imaging-study.ipynb)).
 * [Pirate](fhir_pyrate/pirate.py): Extract and search for data via FHIR
   API
-  (
-  [Example 1](examples/1-simple-json-to-df.ipynb),
-  [2](examples/2-condition-to-imaging-study.ipynb),
-  [3](examples/3-observation-for-condition.ipynb) &
-  [4](examples/4-patients-for-diagnostic-report.ipynb)
-  ).
+  ([Example 1](examples/1-simple-json-to-df.ipynb),
+[2](examples/2-condition-to-imaging-study.ipynb),
+[3](examples/3-observation-for-condition.ipynb) &
+[4](examples/4-patients-for-diagnostic-report.ipynb)).
 * [Miner](fhir_pyrate/miner.py): Search for keywords or phrases
   within Diagnostic Report ([Example 4](examples/4-patients-for-diagnostic-report.ipynb)).
 * [DicomDownloader](fhir_pyrate/dicom_downloader.py): Download complete studies or
