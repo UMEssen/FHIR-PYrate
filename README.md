@@ -180,14 +180,7 @@ sail_through_search_space.
 
 #### [`sail_through_search_space`](fhir_pyrate/pirate.py)
 
-The `sail_through_search_space` function uses the multiprocessing module to speed up some queries. If
-the number of queries within a certain time frame is less than a certain threshold, a single process
-will be used instead. This threshold can be tweaked according to your preferences by modifying
-[MULTIPROCESSING_LIMIT](fhir_pyrate/pirate.py). At the moment multiprocessing
-will only be used if the number of entries of a query is distributed over more than 5 pages of
-results. The number of values per page is defined by the `_count` parameter given
-in `request_params`, or it is 20 (specified in `default_count` of the constructor) otherwise.
-
+The `sail_through_search_space` function uses the multiprocessing module to speed up some queries.
 The multiprocessing is done as follows:
 The time frame is divided into multiple time spans (as many as there are processes) and each smaller
 time frame is investigated simultaneously. This is why it is necessary to give a `date_init`
