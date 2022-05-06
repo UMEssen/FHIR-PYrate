@@ -153,6 +153,12 @@ The Pirate functions do one of three things:
 | query_to_dataframe         |  3   |       Yes       |    Yes    |         DataFrame          |
 | trade_rows_for_dataframe   |  3   |       Yes       |    Yes    |         DataFrame          |
 
+
+**BETA FEATURE**: It is also possible to cache the bundles using the `bundle_caching` parameter,
+which specifies a caching folder. This has not yet been tested extensively and does not have any
+cache invalidation mechanism.
+
+
 A toy request for ImagingStudy:
 
 ```python
