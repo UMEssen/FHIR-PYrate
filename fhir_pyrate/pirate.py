@@ -92,6 +92,10 @@ class Pirate:
         self.bundle_cache_folder = None
         self.silence_fhirpath_warning = silence_fhirpath_warning
         if bundle_cache_folder is not None:
+            logging.warning(
+                "Bundle caching is a beta feature. This has not yet been extensively "
+                "tested and does not have any cache invalidation mechanism."
+            )
             self.bundle_cache_folder = Path(bundle_cache_folder)
             self.bundle_cache_folder.mkdir(parents=True, exist_ok=True)
 
