@@ -120,10 +120,12 @@ class DicomDownloader:
     ):
         self.auth = auth
         self.dicom_web_url = dicom_web_url
-        self.session = requests.session()
+        if self.auth is not None:
+            self.session = self.auth.session
+        else:
+            self.session = requests.session()
         self.client = self._init_dicom_web_client()
         self.client.set_http_retry_params(retry=retry)
-        self._token_created = datetime.datetime.now()
         if output_format.lower() not in ["nifti", "dicom"]:
             raise ValueError(f"The given format {output_format} is not supported.")
         self._output_format = output_format.lower()
@@ -158,12 +160,13 @@ class DicomDownloader:
         client = DICOMwebClient(
             session=self.session,
             url=self.dicom_web_url,
-            headers={"Authorization": f"Bearer {self.auth.token}"},
         )
         return client
 
     def close(self) -> None:
-        self.session.close()
+        # Only close the session if it does not come from an authentication class
+        if self.auth is None:
+            self.session.close()
 
     def __exit__(
         self,
@@ -478,12 +481,16 @@ class DicomDownloader:
                 continue
             csv_rows += download_info
             error_rows += error_info
-            if (datetime.datetime.now() - self._token_created) > datetime.timedelta(
-                minutes=self.auth.token_refresh_minutes
+            if (
+                self.auth is not None
+                and self.auth.token is not None
+                and (
+                    (datetime.datetime.now() - self.auth.auth_time)
+                    > datetime.timedelta(minutes=self.auth.token_refresh_minutes)
+                )
             ):
                 logging.info("Refreshing token...")
-                self.auth.refresh_token(self.session)
-                self._token_created = datetime.datetime.now()
+                self.auth.refresh_token()
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
         return new_mapping_df, error_df
