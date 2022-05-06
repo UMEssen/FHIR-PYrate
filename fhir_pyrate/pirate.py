@@ -16,7 +16,7 @@ import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
-from fhir_pyrate.util import FHIRObj, set_num_processes, string_from_column
+from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
 
 
@@ -50,7 +50,7 @@ class Pirate:
         self,
         base_url: str,
         auth: Any,
-        num_processes: int = None,
+        num_processes: int = 1,
         print_request_url: bool = False,
         time_format: str = "%Y-%m-%dT%H:%M",
         default_count: int = None,
@@ -76,7 +76,7 @@ class Pirate:
         self.session = requests.Session()
         if self.auth is not None:
             self.session.headers.update({"Authorization": f"Bearer {self.auth.token}"})
-        self.num_processes = set_num_processes(num_processes)
+        self.num_processes = num_processes
         self._print_request_url = print_request_url
         self._time_format = time_format
         self._today = datetime.date.today().strftime(self._time_format)
@@ -429,7 +429,7 @@ class Pirate:
             request_params = {
                 key: request_params[key]
                 for key in request_params
-                if key in search_division_params
+                if key not in search_division_params
             }
         if not isinstance(date_init, datetime.date):
             date_init = parse(date_init)

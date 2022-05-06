@@ -11,8 +11,6 @@ import spacy
 from spacy.tokens import Span
 from tqdm import tqdm
 
-from fhir_pyrate.util import set_num_processes
-
 
 class Miner:
     """
@@ -31,7 +29,7 @@ class Miner:
         negation_regex: str = r"(kein|keine|ohne)[^.]*",
         decode_text: Callable = None,
         nlp_lib: str = "de_core_news_sm",
-        num_processes: int = None,
+        num_processes: int = 1,
     ) -> None:
         self.target_regex = target_regex
         self.negation_regex = negation_regex
@@ -59,7 +57,7 @@ class Miner:
             self.nlp = spacy.load(nlp_lib)
             logging.debug(traceback.format_exc())
 
-        self.num_processes = set_num_processes(num_processes)
+        self.num_processes = num_processes
 
     @staticmethod
     def _filter_report_header(sentences: List[Span], filter_text: str) -> List[Span]:
