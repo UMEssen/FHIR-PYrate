@@ -10,9 +10,12 @@
 </div>
 
 This package is meant to provide a simple abstraction to query and structure FHIR resources as
-pandas DataFrames. There are four main classes:
+pandas DataFrames.
+
+There are four main classes:
 * [Ahoy](fhir_pyrate/ahoy.py): Authenticate on the FHIR API
-([Example 2](examples/2-condition-to-imaging-study.ipynb)).
+([Example 2](examples/2-condition-to-imaging-study.ipynb)), at the moment only BasicAuth and
+  token authentication are supported.
 * [Pirate](fhir_pyrate/pirate.py): Extract and search for data via FHIR
   API
   ([Example 1](examples/1-simple-json-to-df.ipynb),
@@ -23,6 +26,13 @@ pandas DataFrames. There are four main classes:
   within Diagnostic Report ([Example 4](examples/4-patients-for-diagnostic-report.ipynb)).
 * [DicomDownloader](fhir_pyrate/dicom_downloader.py): Download complete studies or
   series ([Example 2](examples/2-condition-to-imaging-study.ipynb)).
+
+**DISCLAIMER**:
+We have tried to add tests for some public FHIR servers. However, because of the quality and
+quantity of resources we could not test as much as we have tested with the local FHIR server at
+our institute. If there is anything in the code that only applies to our server, or you have
+problems with the authentication (or anything else really), please just create an issue or
+[email us](mailto:giulia.baldini@uk-essen.de).
 
 <br />
 <div align="center">
