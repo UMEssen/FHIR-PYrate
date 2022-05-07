@@ -32,10 +32,10 @@ class Ahoy:
     def __init__(
         self,
         auth_url: str,
-        auth_type: str = "token",
+        auth_type: Optional[str] = "token",
         refresh_url: str = None,
         username: str = None,
-        auth_method: str = "password",
+        auth_method: Optional[str] = "password",
         token: str = None,
         token_refresh_time_minutes: int = 15,
     ) -> None:
@@ -49,8 +49,10 @@ class Ahoy:
         self._pass_env_name = "FHIR_PASSWORD"
         self.token = token
         self.session = requests.Session()
-        self._authenticate()
-        self.auth_time = datetime.datetime.now()
+        self.auth_time = None
+        if self.auth_type is not None and self.auth_method is not None:
+            self._authenticate()
+            self.auth_time = datetime.datetime.now()
 
     def __enter__(self) -> "Ahoy":
         return self
@@ -83,10 +85,9 @@ class Ahoy:
 
     def _authenticate(self) -> None:
         """
-        Authenticate the user and get a token for the current session.
-
-        :return: The token
+        Authenticate the user in the current session with a token or with BasicAuth.
         """
+        assert self.auth_type is not None
         if self.auth_method == "password":
             username = self.username
             password = getpass.getpass()
@@ -101,16 +102,20 @@ class Ahoy:
             )
         else:
             raise ValueError(
-                f"Used authentication method {self.auth_method} is not defined"
+                f"Used authentication method {self.auth_method} is not defined."
             )
-
-        if self.auth_type == "token":
+        assert self.auth_type is not None
+        if self.auth_type.lower() == "token":
             response = requests.get(f"{self.auth_url}", auth=(username, password))
             response.raise_for_status()
             self.token = response.text
             self.session.headers.update({"Authorization": f"Bearer {self.token}"})
-        elif self.auth_type == "BasicAuth":
+        elif self.auth_type.lower() == "basicauth":
             self.session.auth = HTTPBasicAuth(username, password)
+        else:
+            raise ValueError(
+                f"Used authentication type {self.auth_type} is not defined."
+            )
 
     def refresh_token(self, token: str = None) -> None:
         """
@@ -118,21 +123,19 @@ class Ahoy:
 
         :param token: If a refresh URL has not been provided, a new token can be provided here as
         parameter
-        :return: None
         """
         if token is not None:
             self.token = token
-            self.auth_time = datetime.datetime.now()
             self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+            self.auth_time = datetime.datetime.now()
+        elif self.refresh_url is not None:
+            response = self.session.get(f"{self.refresh_url}")
+            response.raise_for_status()
+            self.token = response.text
+            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+            self.auth_time = datetime.datetime.now()
         else:
-            if self.refresh_url is not None:
-                self.auth_time = datetime.datetime.now()
-                response = self.session.get(f"{self.refresh_url}")
-                response.raise_for_status()
-                self.token = response.text
-                self.session.headers.update({"Authorization": f"Bearer {self.token}"})
-            else:
-                logging.warning(
-                    "The token cannot be refreshed because a valid refresh url has not "
-                    "been provided."
-                )
+            logging.warning(
+                "The token cannot be refreshed because neither a valid token nor a refresh url has "
+                "been provided."
+            )
