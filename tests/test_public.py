@@ -60,6 +60,7 @@ class Test(unittest.TestCase):
                         bundles_function=search.steal_bundles,
                         resource_type="ValueSet",
                         stop_after_first_page=True,
+                        request_params={"_sort": "_id"},
                     )
                     assert len(value_df) > 0
 
