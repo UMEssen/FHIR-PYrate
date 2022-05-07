@@ -150,7 +150,7 @@ class Pirate:
     def steal_bundles(
         self,
         resource_type: str,
-        request_params: Dict[str, Any],
+        request_params: Dict[str, Any] = None,
         stop_after_first_page: bool = False,
         read_from_cache: bool = False,
         silence_tqdm: bool = False,
@@ -168,7 +168,7 @@ class Pirate:
         :return: A list of bundles with the queried information
         """
         return self.steal_bundles_for_timespan(
-            request_params=request_params,
+            request_params={} if request_params is None else request_params,
             resource_type=resource_type,
             stop_after_first_page=stop_after_first_page,
             read_from_cache=read_from_cache,
@@ -178,7 +178,7 @@ class Pirate:
     def steal_bundles_for_timespan(
         self,
         resource_type: str,
-        request_params: Dict[str, Any],
+        request_params: Dict[str, Any] = None,
         time_attribute_name: str = "_lastUpdated",
         time_interval: Tuple[str, str] = None,
         stop_after_first_page: bool = False,
@@ -204,7 +204,7 @@ class Pirate:
         :return: A list of bundles with the queried information
         """
         bundles = []
-        current_params = request_params.copy()
+        current_params = {} if request_params is None else request_params.copy()
         if time_interval is not None:
             current_params[time_attribute_name] = (
                 f"ge{time_interval[0]}",
@@ -231,7 +231,7 @@ class Pirate:
         )
 
         if time_interval is None:
-            self._check_sorting(bundle, request_params)
+            self._check_sorting(bundle, current_params)
         # If we only want one page
         if stop_after_first_page:
             # Append the single bundle
