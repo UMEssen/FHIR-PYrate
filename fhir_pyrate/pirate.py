@@ -46,9 +46,11 @@ class Pirate:
         "implies",
     ]
     FHIRPATH_IMPORT_ERROR = (
-        "The fhirpath-py package is not installed because it is not present on PyPi, if you want "
-        "to use the FHIRPath functionalities you need to install this package using `pip"
-        "install git+https://github.com/beda-software/fhirpath-py.git`"
+        "The fhirpath-py package cannot be pushed as a package dependency because it is not "
+        "present on PyPi, if you want to use the FHIRPath functionalities you need to install "
+        "this package using "
+        "`pip install git+https://github.com/beda-software/fhirpath-py.git` or by adding it to "
+        "poetry."
     )
 
     def __init__(

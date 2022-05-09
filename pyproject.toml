@@ -17,13 +17,10 @@ dicomweb-client = "^0.52.0"
 spacy = "^3.0.6"
 tqdm = "^4.56.0"
 openpyxl = "^3.0.7"
-fhirpathpy = {git = "https://github.com/beda-software/fhirpath-py.git", optional = true}
 python-dotenv = "^0.20.0"
 
-[tool.poetry.extras]
-fhirpath-py = ["fhirpathpy"]
-
 [tool.poetry.dev-dependencies]
+fhirpathpy = {git = "https://github.com/beda-software/fhirpath-py.git"}
 pre-commit = "^2.14.0"
 flake8 = "3.9.2"
 mypy = "0.910"
