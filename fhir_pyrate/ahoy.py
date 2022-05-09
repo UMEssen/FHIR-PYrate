@@ -87,7 +87,6 @@ class Ahoy:
         """
         Authenticate the user in the current session with a token or with BasicAuth.
         """
-        assert self.auth_type is not None
         if self.auth_method == "password":
             username = self.username
             password = getpass.getpass()
