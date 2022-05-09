@@ -5,7 +5,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/UMEssen/FHIR-PYrate">
-    <img src="https://github.com/UMEssen/FHIR-PYrate/images/logo.svg" alt="Logo" width="435" height="300">
+    <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/logo.svg" alt="Logo" width="435" height="300">
   </a>
 </div>
 
@@ -13,20 +13,20 @@ This package is meant to provide a simple abstraction to query and structure FHI
 pandas DataFrames.
 
 There are four main classes:
-* [Ahoy](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/ahoy.py): Authenticate on the FHIR API
-([Example 1](https://github.com/UMEssen/FHIR-PYrate/examples/1-simple-json-to-df.ipynb),
-[2](https://github.com/UMEssen/FHIR-PYrate/examples/2-condition-to-imaging-study.ipynb)),
+* [Ahoy](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/ahoy.py): Authenticate on the FHIR API
+([Example 1](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/1-simple-json-to-df.ipynb),
+[2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-condition-to-imaging-study.ipynb)),
 at the moment only BasicAuth and token authentication are supported.
-* [Pirate](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/pirate.py): Extract and search for data via FHIR
+* [Pirate](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py): Extract and search for data via FHIR
   API
-  ([Example 1](https://github.com/UMEssen/FHIR-PYrate/examples/1-simple-json-to-df.ipynb),
-[2](https://github.com/UMEssen/FHIR-PYrate/examples/2-condition-to-imaging-study.ipynb),
-[3](https://github.com/UMEssen/FHIR-PYrate/examples/3-observation-for-condition.ipynb) &
-[4](https://github.com/UMEssen/FHIR-PYrate/examples/4-patients-for-diagnostic-report.ipynb)).
-* [Miner](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/miner.py): Search for keywords or phrases
-  within Diagnostic Report ([Example 4](https://github.com/UMEssen/FHIR-PYrate/examples/4-patients-for-diagnostic-report.ipynb)).
-* [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/dicom_downloader.py): Download complete studies or
-  series ([Example 2](https://github.com/UMEssen/FHIR-PYrate/examples/2-condition-to-imaging-study.ipynb)).
+  ([Example 1](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/1-simple-json-to-df.ipynb),
+[2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-condition-to-imaging-study.ipynb),
+[3](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/3-observation-for-condition.ipynb) &
+[4](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/4-patients-for-diagnostic-report.ipynb)).
+* [Miner](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/miner.py): Search for keywords or phrases
+  within Diagnostic Report ([Example 4](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/4-patients-for-diagnostic-report.ipynb)).
+* [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/dicom_downloader.py): Download complete studies or
+  series ([Example 2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-condition-to-imaging-study.ipynb)).
 
 **DISCLAIMER**:
 We have tried to add tests for some public FHIR servers. However, because of the quality and
@@ -37,7 +37,7 @@ problems with the authentication (or anything else really), please just create a
 
 <br />
 <div align="center">
-  <img src="https://github.com/UMEssen/FHIR-PYrate/images/resources.svg" alt="Resources" width="585" height="351">
+  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/resources.svg" alt="Resources" width="585" height="351">
 </div>
 
 <!-- TABLE OF CONTENTS -->
@@ -48,15 +48,15 @@ Table of Contents:
    * [Or Within Poetry](https://github.com/UMEssen/FHIR-PYrate/#or-within-poetry)
 * [Run Tests](https://github.com/UMEssen/FHIR-PYrate/#run-tests)
 * [Explanations &amp; Examples](https://github.com/UMEssen/FHIR-PYrate/#explanations--examples)
-   * [<a href="fhir_pyrate/ahoy.py">Ahoy</a>](https://github.com/UMEssen/FHIR-PYrate/#ahoy)
-   * [<a href="fhir_pyrate/pirate.py">Pirate</a>](https://github.com/UMEssen/FHIR-PYrate/#pirate)
-      * [<a href="fhir_pyrate/pirate.py">sail_through_search_space</a>](https://github.com/UMEssen/FHIR-PYrate/#sail_through_search_space)
-      * [<a href="fhir_pyrate/pirate.py">trade_rows_for_bundles</a>](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_bundles)
-      * [<a href="fhir_pyrate/pirate.py">bundles_to_dataframe</a>](https://github.com/UMEssen/FHIR-PYrate/#bundles_to_dataframe)
-      * [<a href="fhir_pyrate/pirate.py">query_to_dataframe</a>](https://github.com/UMEssen/FHIR-PYrate/#query_to_dataframe)
-      * [<a href="fhir_pyrate/pirate.py">trade_rows_for_dataframe</a>](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_dataframe)
-   * [<a href="fhir_pyrate/miner.py">Miner</a>](https://github.com/UMEssen/FHIR-PYrate/#miner)
-   * [<a href="fhir_pyrate/dicom_downloader.py">DicomDownloader</a>](https://github.com/UMEssen/FHIR-PYrate/#dicomdownloader)
+   * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/#ahoy)
+   * [Pirate](https://github.com/UMEssen/FHIR-PYrate/#pirate)
+      * [sail_through_search_space](https://github.com/UMEssen/FHIR-PYrate/#sail_through_search_space)
+      * [trade_rows_for_bundles](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_bundles)
+      * [bundles_to_dataframe](https://github.com/UMEssen/FHIR-PYrate/#bundles_to_dataframe)
+      * [query_to_dataframe](https://github.com/UMEssen/FHIR-PYrate/#query_to_dataframe)
+      * [trade_rows_for_dataframe](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_dataframe)
+   * [Miner](https://github.com/UMEssen/FHIR-PYrate/#miner)
+   * [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/#dicomdownloader)
 * [Contributing](https://github.com/UMEssen/FHIR-PYrate/#contributing)
 * [Authors and acknowledgment](https://github.com/UMEssen/FHIR-PYrate/#authors-and-acknowledgment)
 * [License](https://github.com/UMEssen/FHIR-PYrate/#license)
@@ -120,14 +120,14 @@ poetry run python -m unittest discover tests
 ```
 
 If you implement a new feature, please add a small test for it in
-[tests](https://github.com/UMEssen/FHIR-PYrate/tests). You can
+[tests](https://github.com/UMEssen/FHIR-PYrate/blob/main/tests). You can
 also use the tests as examples.
 
 ## Explanations & Examples
 
-Please look at the [examples](https://github.com/UMEssen/FHIR-PYrate/examples) folder for complete examples.
+Please look at the [examples](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples) folder for complete examples.
 
-### [Ahoy](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/ahoy.py)
+### [Ahoy](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/ahoy.py)
 
 The **Ahoy** class is used to authenticate and is needed for the **Pirate** and
 **DicomDownloader** classes.
@@ -153,7 +153,7 @@ We accept the following authentication methods:
   function.
 * **keyring**: To Be Implemented.
 
-### [Pirate](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/pirate.py)
+### [Pirate](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
 The **Pirate** can query any resource implemented within the FHIR API and is initialized as
 follows:
@@ -227,7 +227,7 @@ If the value is a list or tuple, then all values will be used to build the reque
 `bundles_function` that was called and calls `bundles_to_dataframe`. In this case, we used
 sail_through_search_space.
 
-#### [`sail_through_search_space`](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/pirate.py)
+#### [`sail_through_search_space`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
 The `sail_through_search_space` function uses the multiprocessing module to speed up some queries.
 The multiprocessing is done as follows:
@@ -248,7 +248,7 @@ The resources where the date is based on a period (such as `Encounter` or `Proce
 duplicates in the multiprocessing because one entry may belong to multiple time spans that are
 generated. You can drop the ID duplicates once you have built a DataFrame with your data.
 
-#### [`trade_rows_for_bundles`](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/pirate.py)
+#### [`trade_rows_for_bundles`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
 In case we already have an Excel sheet or CSV file with `fhir_patient_id`s or any other
 identifier), and we want to request resources based on those
@@ -282,7 +282,7 @@ df_constraints={"code": ("http://loinc.org", "loinc_code")}
 This function also uses multiprocessing, but differently from before, it will investigate the rows
 of the DataFrame in parallel.
 
-#### [`bundles_to_dataframe`](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/pirate.py)
+#### [`bundles_to_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
 The two functions described above return a list of `FHIRObj` bundles which can then be
 converted to a `DataFrame` using this function.
@@ -290,7 +290,7 @@ converted to a `DataFrame` using this function.
 The `bundles_to_dataframe` has three options on how to handle and extract the relevant information
 from the bundles:
 1. Extract everything, in this case you can use the
-[`flatten_data`](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/util/bundle_processing_templates.py)
+[`flatten_data`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/util/bundle_processing_templates.py)
 function, which is already the default for `process_function`, so you do not actually need to
 specify anything.
 ```python
@@ -305,7 +305,7 @@ df = search.bundles_to_dataframe(
 2. Use a processing function where you define exactly which attributes are needed by iterating
    through the entries and selecting the elements. The values that will be added to the
    dictionary represent the columns of the DataFrame. For an example of when it might make sense
-   to do this, check [Example 3](https://github.com/UMEssen/FHIR-PYrate/examples/3-patients-for-condition.ipynb).
+   to do this, check [Example 3](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/3-patients-for-condition.ipynb).
 ```python
 from typing import List, Dict
 from fhir_pyrate.util.fhirobj import FHIRObj
@@ -363,11 +363,11 @@ In case you are not sure whether we have collected the same entry multiple times
 period), please use the `drop_duplicates` function from pandas. A list of column names for which
 we do not want duplicates shall be passed as parameter and all duplicate rows will disappear.
 
-#### [`query_to_dataframe`](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/pirate.py)
+#### [`query_to_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 This function is simply a wrapper that can be used to combine any function of Type 1 and
 `bundles_to_dataframe`. Look at [examples](examples) for some use cases.
 
-#### [`trade_rows_for_dataframe`](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/pirate.py)
+#### [`trade_rows_for_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 This function has an output similar to `query_to_dataframe` with
 `bundles_function=trade_rows_for_bundles`, but with two main differences:
 1. Here, the bundles are retrieved and the DataFrame is computed straight away. In
@@ -375,13 +375,13 @@ This function has an output similar to `query_to_dataframe` with
    retrieved, and then they are converted into a DataFrame.
 2. If the `df_constraints` constraints are specified, they will end up in the final DataFrame.
 
-You can find an example in [Example 3](https://github.com/UMEssen/FHIR-PYrate/examples/3-patients-for-condition.ipynb).
+You can find an example in [Example 3](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/3-patients-for-condition.ipynb).
 
-### [Miner](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/miner.py)
+### [Miner](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/miner.py)
 
 <br />
 <div align="center">
-  <img src="https://github.com/UMEssen/FHIR-PYrate/images/miner.svg" alt="Logo" width="642" height="219">
+  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/miner.svg" alt="Logo" width="642" height="219">
 </div>
 <br />
 
@@ -407,7 +407,7 @@ df_filtered = miner.nlp_on_dataframe(
 )
 ```
 
-### [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/fhir_pyrate/dicom_downloader.py)
+### [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/dicom_downloader.py)
 
 At our institute we have a DicomWebAdapter app that can be used to download studies and series
 from the PACS system of our hospital. The DicomDownloader uses the
@@ -427,7 +427,7 @@ In the NIfTI case there will be an  additional `.dcm` file to store some metadat
 Using the function `download_data_from_dataframe` it is possible to download studies and series
 directly from the data of a given dataframe. The column that contain the study/series
 information can be specified. To have an example of how the DataFrame should look like, please
-refer to [Example 2](https://github.com/UMEssen/FHIR-PYrate/examples/2-patient-to-imaging-study.ipynb).
+refer to [Example 2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-patient-to-imaging-study.ipynb).
 A DataFrame will be returned which specifies the successfully downloaded Study/Series ID, the
 deidentified IDs and the download folder name. Additionally, a DataFrame containing the failed
 studies will also be returned, together with the kind of error and the traceback.
