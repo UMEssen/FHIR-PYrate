@@ -165,7 +165,7 @@ class Pirate:
         :return: A list of bundles with the queried information
         """
         return self.steal_bundles_for_timespan(
-            request_params={} if request_params is None else request_params,
+            request_params=request_params,
             resource_type=resource_type,
             stop_after_first_page=stop_after_first_page,
             read_from_cache=read_from_cache,
