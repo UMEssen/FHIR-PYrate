@@ -495,6 +495,8 @@ request. You can also simply open an issue with the tag "enhancement".
 - [gakusai](https://github.com/gakusai): initial idea, development, logo & figures
 - [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
 
+We would like to thank [razorx89](https://github.com/razorx89) for his infinite knowledge.
+
 ## License
 This project is licenced under the [MIT Licence](LICENSE).
 
