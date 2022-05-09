@@ -427,7 +427,7 @@ In the NIfTI case there will be an  additional `.dcm` file to store some metadat
 Using the function `download_data_from_dataframe` it is possible to download studies and series
 directly from the data of a given dataframe. The column that contain the study/series
 information can be specified. To have an example of how the DataFrame should look like, please
-refer to [Example 2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-patient-to-imaging-study.ipynb).
+refer to [Example 2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-condition-to-imaging-study.ipynb).
 A DataFrame will be returned which specifies the successfully downloaded Study/Series ID, the
 deidentified IDs and the download folder name. Additionally, a DataFrame containing the failed
 studies will also be returned, together with the kind of error and the traceback.
