@@ -31,7 +31,7 @@ class Ahoy:
 
     def __init__(
         self,
-        auth_url: str,
+        auth_url: str = None,
         auth_type: Optional[str] = "token",
         refresh_url: str = None,
         username: str = None,
@@ -106,6 +106,10 @@ class Ahoy:
             )
         assert self.auth_type is not None
         if self.auth_type.lower() == "token":
+            assert self.auth_url is not None, (
+                "The token authentication method cannot be used "
+                "without an authentication URL."
+            )
             response = requests.get(f"{self.auth_url}", auth=(username, password))
             response.raise_for_status()
             self.token = response.text
