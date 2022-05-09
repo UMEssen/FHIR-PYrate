@@ -73,9 +73,10 @@ class Pirate:
             else url_search.group(2) + "/"
         )
         self.auth = auth
-        self.session = requests.Session()
         if self.auth is not None:
-            self.session.headers.update({"Authorization": f"Bearer {self.auth.token}"})
+            self.session = self.auth.session
+        else:
+            self.session = requests.Session()
         self.num_processes = num_processes
         self._print_request_url = print_request_url
         self._time_format = time_format
@@ -95,7 +96,9 @@ class Pirate:
         return self
 
     def close(self) -> None:
-        self.session.close()
+        # Only close the session if it does not come from an authentication class
+        if self.auth is None:
+            self.session.close()
 
     def __exit__(
         self,

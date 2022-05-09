@@ -1,8 +1,12 @@
+import datetime
 import getpass
 import logging
 import os
+from types import TracebackType
+from typing import Optional, Type
 
 import requests
+from requests.auth import HTTPBasicAuth
 
 
 class Ahoy:
@@ -10,6 +14,8 @@ class Ahoy:
     Simple authentication class.
 
     :param auth_url: The URL to use for authentication
+    :param auth_type: The kind of authentication, for now only "token" and "BasicAuth" are
+    supported.
     :param refresh_url:  The URL to use to refresh the token
     :param username: The username to use for the authentication (for the password authentication
     method)
@@ -26,13 +32,14 @@ class Ahoy:
     def __init__(
         self,
         auth_url: str = None,
+        auth_type: Optional[str] = "token",
         refresh_url: str = None,
         username: str = None,
-        auth_method: str = "password",
+        auth_method: Optional[str] = "password",
         token: str = None,
         token_refresh_time_minutes: int = 15,
     ) -> None:
-
+        self.auth_type = auth_type
         self.auth_method = auth_method
         self.auth_url = auth_url
         self.refresh_url = refresh_url
@@ -40,10 +47,26 @@ class Ahoy:
         self.token_refresh_minutes = token_refresh_time_minutes
         self._user_env_name = "FHIR_USER"
         self._pass_env_name = "FHIR_PASSWORD"
-        if token is not None:
-            self.token = token
-        else:
-            self.token = self._generate_token()
+        self.token = token
+        self.session = requests.Session()
+        self.auth_time = None
+        if self.auth_type is not None and self.auth_method is not None:
+            self._authenticate()
+            self.auth_time = datetime.datetime.now()
+
+    def __enter__(self) -> "Ahoy":
+        return self
+
+    def close(self) -> None:
+        self.session.close()
+
+    def __exit__(
+        self,
+        exctype: Optional[Type[BaseException]],
+        excinst: Optional[BaseException],
+        exctb: Optional[TracebackType],
+    ) -> None:
+        self.close()
 
     def change_environment_variable_name(
         self, user_env: str = None, pass_env: str = None
@@ -60,11 +83,9 @@ class Ahoy:
         if pass_env is not None:
             self._pass_env_name = pass_env
 
-    def _generate_token(self) -> str:
+    def _authenticate(self) -> None:
         """
-        Authenticate the user and get a token for the current session.
-
-        :return: The token
+        Authenticate the user in the current session with a token or with BasicAuth.
         """
         if self.auth_method == "password":
             username = self.username
@@ -80,32 +101,44 @@ class Ahoy:
             )
         else:
             raise ValueError(
-                f"Used authentication method {self.auth_method} is not defined"
+                f"Used authentication method {self.auth_method} is not defined."
+            )
+        assert self.auth_type is not None
+        if self.auth_type.lower() == "token":
+            assert self.auth_url is not None, (
+                "The token authentication method cannot be used "
+                "without an authentication URL."
+            )
+            response = requests.get(f"{self.auth_url}", auth=(username, password))
+            response.raise_for_status()
+            self.token = response.text
+            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+        elif self.auth_type.lower() == "basicauth":
+            self.session.auth = HTTPBasicAuth(username, password)
+        else:
+            raise ValueError(
+                f"Used authentication type {self.auth_type} is not defined."
             )
 
-        response = requests.get(f"{self.auth_url}", auth=(username, password))
-        response.raise_for_status()
-        return response.text
-
-    def refresh_token(self, session: requests.Session, token: str = None) -> None:
+    def refresh_token(self, token: str = None) -> None:
         """
         Refresh the token of the current session.
 
-        :param session: The current session
         :param token: If a refresh URL has not been provided, a new token can be provided here as
         parameter
-        :return: None
         """
         if token is not None:
             self.token = token
-            session.headers.update({"Authorization": f"Bearer {self.token}"})
+            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+            self.auth_time = datetime.datetime.now()
+        elif self.refresh_url is not None:
+            response = self.session.get(f"{self.refresh_url}")
+            response.raise_for_status()
+            self.token = response.text
+            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+            self.auth_time = datetime.datetime.now()
         else:
-            if self.refresh_url is not None:
-                response = session.get(f"{self.refresh_url}")
-                response.raise_for_status()
-                self.token = response.text
-            else:
-                logging.warning(
-                    "The token cannot be refreshed because a valid refresh url has not "
-                    "been provided."
-                )
+            logging.warning(
+                "The token cannot be refreshed because neither a valid token nor a refresh url has "
+                "been provided."
+            )

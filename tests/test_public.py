@@ -1,7 +1,8 @@
+import os
 import unittest
 from typing import Dict, List
 
-from fhir_pyrate import Miner, Pirate
+from fhir_pyrate import Ahoy, Miner, Pirate
 from fhir_pyrate.util import FHIRObj
 
 SERVERS = [
@@ -10,6 +11,12 @@ SERVERS = [
     ("http://hapi.fhir.org/baseR4", "subject"),
     ("http://hapi.fhir.org/baseR5", "subject"),
     ("https://stu3.test.pyrohealth.net/fhir", "subject"),
+]
+
+AUTH_SERVERS = [
+    ("http://hapi.fhir.org/baseDstu2", None, None),
+    # Give username and password don't work
+    # ("https://jade.phast.fr/resources-server/api/FHIR/", "basicauth", "env"),
 ]
 
 
@@ -30,6 +37,36 @@ def get_diagnostic_text(bundle: FHIRObj) -> List[Dict]:
 
 
 class Test(unittest.TestCase):
+    def testAuth(self) -> None:
+        for server, type, method in AUTH_SERVERS:
+            if "jade.phast.fr" in server:
+                # TODO: Does anybody know a reliable BasicAuth test server?
+                #  This one does not work.
+                os.environ["FHIR_USER"] = "Connectathon"
+                os.environ["FHIR_PASSWORD"] = "Connectathon_052020"
+            with self.subTest(msg="{}".format(server)):
+                with Ahoy(
+                    auth_type=type,
+                    auth_url=server,
+                    auth_method=method,
+                ) as auth:
+                    assert auth.session is not None
+                    if "jade.phast.fr" in server:
+                        assert auth.session.auth is not None
+                    search = Pirate(
+                        auth=auth,
+                        base_url=server,
+                        print_request_url=False,
+                        num_processes=2,
+                    )
+                    value_df = search.query_to_dataframe(
+                        bundles_function=search.steal_bundles,
+                        resource_type="ValueSet",
+                        stop_after_first_page=True,
+                        request_params={"_sort": "_id"},
+                    )
+                    assert len(value_df) > 0
+
     # Test each single function from Pirate
     def testServers(self) -> None:
         for server, patient_ref in SERVERS:
