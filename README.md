@@ -14,7 +14,7 @@ pandas DataFrames.
 
 There are four main classes:
 * [Ahoy](fhir_pyrate/ahoy.py): Authenticate on the FHIR API
-([Example 2](examples/2-condition-to-imaging-study.ipynb)), at the moment only BasicAuth and
+([Example 1](examples/1-simple-json-to-df.ipynb), [2](examples/2-condition-to-imaging-study.ipynb)), at the moment only BasicAuth and
   token authentication are supported.
 * [Pirate](fhir_pyrate/pirate.py): Extract and search for data via FHIR
   API
@@ -42,7 +42,7 @@ problems with the authentication (or anything else really), please just create a
 <!-- TABLE OF CONTENTS -->
 Table of Contents:
 
-* [Install (In Progress)](#install-in-progress)
+* [Install](#install)
    * [Either Pip](#either-pip)
    * [Or Within Poetry](#or-within-poetry)
 * [Run Tests](#run-tests)
@@ -62,18 +62,30 @@ Table of Contents:
 * [Project status](#project-status)
 
 
-## Install (In Progress)
+## Install
 
 ### Either Pip
-
+The package can be installed using the GitHub published version
+```bash
+pip install git+https://github.com/UMEssen/FHIR-PYrate.git
+```
+or by using PyPi. In this case, if you want to use the FHIRPath capabilities you also need to
+install [fhirpath-py](https://github.com/beda-software/fhirpath-py).
 ```bash
 pip install fhir-pyrate
+pip install git+https://github.com/beda-software/fhirpath-py.git
 ```
 
 ### Or Within Poetry
-
+The same holds for poetry, install either the GitHub published version
+```bash
+poetry add git+https://github.com/UMEssen/FHIR-PYrate.git
+poetry install
+```
+or the PyPi version.
 ```bash
 poetry add fhir-pyrate
+poetry add git+https://github.com/beda-software/fhirpath-py.git
 poetry install
 ```
 
@@ -297,11 +309,30 @@ df = search.bundles_to_dataframe(
 )
 ```
 3. Extract only part of the information using the `fhir_paths` argument. Here you can put a list
-   of string that follow the [FHIRPath](https://pypi.org/project/fhirpath/) standard.
-
-**NOTE**: The standard also allows some primitive math operations such as modulus (`mod`) or integer
-division (`div`), and this may be problematic if there are fields of the resource that use
-these terms as attributes. It is actually the case in many generated [public FHIR resources](https://hapi.fhir.org/baseDstu2/DiagnosticReport/133015).
+   of string that follow the [FHIRPath](https://hl7.org/fhirpath/) standard. For this purpose, we
+   use the [fhirpath-py](https://github.com/beda-software/fhirpath-py) package, which uses the
+   [antr4](https://github.com/antlr/antlr4) parser.
+```python
+# Create bundles with Pirate
+search = ...
+bundles = ...
+# Convert the returned bundles to a dataframe
+df = search.bundles_to_dataframe(
+    bundles=bundles,
+    fhir_paths=["id", "code.coding", "identifier[0].code"],
+)
+```
+**NOTE on [fhirpath-py](https://github.com/beda-software/fhirpath-py)**: This package is
+currently not on PyPi and
+[PyPi does not allow packages that are not on PyPi](https://github.com/pypa/pip/issues/6301),
+so if you want to use this feature you need to install the package separately or use:
+```
+pip install git+https://github.com/UMEssen/FHIR-PYrate.git
+```
+**NOTE on FHIRPaths**: The standard also allows some primitive math operations such as modulus
+(`mod`) or integer division (`div`), and this may be problematic if there are fields of the
+resource that use these terms as attributes.
+It is actually the case in many generated [public FHIR resources](https://hapi.fhir.org/baseDstu2/DiagnosticReport/133015).
 In this case the term `text.div` cannot be used, and you should use a processing function
 instead (as in 2.).
 
