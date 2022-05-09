@@ -138,9 +138,6 @@ class Pirate:
                 print(request_url)
             response.raise_for_status()
             json_response = FHIRObj(**response.json())
-            # json_response = json.loads(
-            #     json.dumps(response.json()), object_hook=lambda item: FHIRObj(**item)
-            # )
             return json_response
         except Exception:
             # Leave this to be able to quickly see the errors
