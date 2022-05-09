@@ -610,7 +610,7 @@ class Pirate:
                                 f"to the FHIRPath specification (https://hl7.org/fhirpath/), which "
                                 f"means that it will not be interpreted as path expression. "
                                 f"E.g., if you are using text.div, it will not work, because 'div' is "
-                                f"already a string that can be used for integer division."
+                                f"already a string that can be used for integer division. "
                                 f"If you really want to do this, please use processing functions "
                                 f"instead. If you are using the FHIRPath expressions correctly as "
                                 f"they are intended, you can silence the warning when "
