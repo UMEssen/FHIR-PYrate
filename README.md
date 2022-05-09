@@ -65,28 +65,47 @@ Table of Contents:
 ## Install
 
 ### Either Pip
-The package can be installed using the GitHub published version
+The package can be installed using PyPi
+```bash
+pip install fhir-pyrate
+```
+or using GitHub (always the newest version).
 ```bash
 pip install git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
-or by using PyPi. In this case, if you want to use the FHIRPath capabilities you also need to
-install [fhirpath-py](https://github.com/beda-software/fhirpath-py).
+
+If you want to use the FHIRPath capabilities you also need to
+install [fhirpath-py](https://github.com/beda-software/fhirpath-py) with
 ```bash
-pip install fhir-pyrate
 pip install git+https://github.com/beda-software/fhirpath-py.git
 ```
 
 ### Or Within Poetry
-The same holds for poetry, install either the GitHub published version
+We can also use poetry for this same purpose. Using PyPi we need to run the following commands.
+```bash
+poetry add fhir-pyrate
+poetry install
+```
+Whereas to add it from GitHub, we have different options, because until recently
+[poetry used to exclusively install from the master branch](https://github.com/python-poetry/poetry/issues/3366).
+
+Poetry 1.2.0a2+:
 ```bash
 poetry add git+https://github.com/UMEssen/FHIR-PYrate.git
 poetry install
 ```
-or the PyPi version.
+For the previous versions you need to add the following line to your `pyproject.toml` file:
 ```bash
-poetry add fhir-pyrate
+fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "main"}
+```
+and then run
+```bash
+poetry lock
+```
+
+And if you want to use FHIRPaths, add [fhirpath-py](https://github.com/beda-software/fhirpath-py).
+```bash
 poetry add git+https://github.com/beda-software/fhirpath-py.git
-poetry install
 ```
 
 ## Run Tests
