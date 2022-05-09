@@ -6,7 +6,9 @@ name: CI Tests
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-  
+    paths:
+      - "fhir_pyrate/**"
+      - "tests/**"
   pull_request:
   
   # Allows you to run this workflow manually from the Actions tab
