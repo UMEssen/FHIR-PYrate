@@ -44,7 +44,6 @@ class Miner:
                 "this will probably not work, because it needs access to your home "
                 "directory. Please run python -m spacy download {nlp_lib} in your "
                 "docker file.",
-                UserWarning,
             )
             subprocess.run(
                 f"python3 -m spacy download {nlp_lib}".split(" "),
