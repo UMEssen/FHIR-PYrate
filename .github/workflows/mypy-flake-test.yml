@@ -24,12 +24,12 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.7", "3.8", "3.9"]
-    
+
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
-      
+
       # Set up python
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
@@ -42,7 +42,7 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
           export PATH="/root/.local/bin:$PATH"
           poetry run pip install -U pip
-          poetry install
+          poetry install -E fhirpath-py
       - name: Run MyPy
         run: |
           poetry run mypy --install-types --non-interactive fhir_pyrate/

@@ -1,7 +1,5 @@
 from typing import Any, Dict, List
 
-from fhirpathpy import compile
-
 from fhir_pyrate.util import FHIRObj
 
 
@@ -72,6 +70,8 @@ def parse_fhir_path(bundle: FHIRObj, fhir_paths: List[str]) -> List[Dict]:
     DataFrame
     :return: A dictionary containing the parsed information
     """
+    from fhirpathpy import compile
+
     records: List[Dict] = []
     for _ in bundle.entry or []:
         records.append({})

@@ -45,6 +45,11 @@ class Pirate:
         "xor",
         "implies",
     ]
+    FHIRPATH_IMPORT_ERROR = (
+        "The fhirpath-py package is not installed because it is not present on PyPi, if you want "
+        "to use the FHIRPath functionalities you need to install this package using `pip"
+        "install git+https://github.com/beda-software/fhirpath-py.git`"
+    )
 
     def __init__(
         self,
@@ -580,6 +585,10 @@ class Pirate:
         :return: A pandas DataFrame containing the queried information
         """
         if fhir_paths is not None:
+            try:
+                import fhirpathpy  # noqa
+            except ImportError as e:
+                raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
             logging.debug(
                 f"The selected process_function {process_function.__name__} will be "
                 f"overwritten."
@@ -662,6 +671,11 @@ class Pirate:
         :return: A pandas DataFrame containing the queried information merged with the original
         DataFrame
         """
+        if fhir_paths is not None:
+            try:
+                import fhirpathpy  # noqa
+            except ImportError as e:
+                raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
         request_params = {} if request_params is None else request_params
         logging.info(
             f"Querying each row of the DataFrame with {self.num_processes} processes."
@@ -755,6 +769,11 @@ class Pirate:
         sequentially to build the DataFrame
         :return: A pandas DataFrame containing the queried information
         """
+        if fhir_paths is not None:
+            try:
+                import fhirpathpy  # noqa
+            except ImportError as e:
+                raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
         return self.bundles_to_dataframe(
             bundles=bundles_function(**kwargs),
             process_function=process_function,

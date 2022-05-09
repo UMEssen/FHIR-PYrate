@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fhir-pyrate"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 description = "FHIR-PYrate is a package that provides a high-level API to query FHIR Servers for bundles of resources and return the structured information into Pandas DataFrames. It can also be used to filter resources and download DICOM studies and series."
 authors = ["Giulia Baldini <giulia.baldini@uk-essen.de>", "Rene Hosch <rene.hosch@uk-essen.de>"]
 packages = [
@@ -17,8 +17,11 @@ dicomweb-client = "^0.52.0"
 spacy = "^3.0.6"
 tqdm = "^4.56.0"
 openpyxl = "^3.0.7"
-fhirpathpy = {git = "https://github.com/beda-software/fhirpath-py.git"}
+fhirpathpy = {git = "https://github.com/beda-software/fhirpath-py.git", optional = true}
 python-dotenv = "^0.20.0"
+
+[tool.poetry.extras]
+fhirpath-py = ["fhirpathpy"]
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.14.0"
