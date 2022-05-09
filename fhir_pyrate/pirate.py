@@ -16,7 +16,7 @@ import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
-from fhir_pyrate.util import FHIRObj, set_num_processes, string_from_column
+from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
 
 
@@ -30,11 +30,7 @@ class Pirate:
     functions that use multiprocessing
     :param print_request_url: Whether the request URLs should be printed whenever we do a request
     :param time_format: The time format used by the FHIR API
-    :param multiprocessing_limit: A threshold that is used to understand whether we should run
-    the query with multiprocessing or not, if the number of entries is distributed over less than
-    multiprocessing_limit pages, then we run the query with a single process
     :param default_count: The default count of results per page used by the server
-    :param max_count_limit: An upper bound for the count according to the FHIR server
     :param bundle_cache_folder: Whether bundles should be stored for later use, and where
     :param silence_fhirpath_warning: Whether the FHIR path warning regarding already existing
     expressions should be silenced
@@ -54,12 +50,10 @@ class Pirate:
         self,
         base_url: str,
         auth: Any,
-        num_processes: int = None,
+        num_processes: int = 1,
         print_request_url: bool = False,
         time_format: str = "%Y-%m-%dT%H:%M",
-        multiprocessing_limit: int = 5,
-        default_count: int = 20,
-        max_count_limit: int = 5000,
+        default_count: int = None,
         bundle_cache_folder: Union[str, Path] = None,
         silence_fhirpath_warning: bool = False,
     ):
@@ -82,13 +76,11 @@ class Pirate:
         self.session = requests.Session()
         if self.auth is not None:
             self.session.headers.update({"Authorization": f"Bearer {self.auth.token}"})
-        self.num_processes = set_num_processes(num_processes)
+        self.num_processes = num_processes
         self._print_request_url = print_request_url
         self._time_format = time_format
         self._today = datetime.date.today().strftime(self._time_format)
-        self._multiprocessing_limit = multiprocessing_limit
         self._default_count = default_count
-        self._max_count_limit = max_count_limit
         self.bundle_cache_folder = None
         self.silence_fhirpath_warning = silence_fhirpath_warning
         if bundle_cache_folder is not None:
@@ -150,9 +142,6 @@ class Pirate:
                 print(request_url)
             response.raise_for_status()
             json_response = FHIRObj(**response.json())
-            # json_response = json.loads(
-            #     json.dumps(response.json()), object_hook=lambda item: FHIRObj(**item)
-            # )
             return json_response
         except Exception:
             # Leave this to be able to quickly see the errors
@@ -162,7 +151,7 @@ class Pirate:
     def steal_bundles(
         self,
         resource_type: str,
-        request_params: Dict[str, Any],
+        request_params: Dict[str, Any] = None,
         stop_after_first_page: bool = False,
         read_from_cache: bool = False,
         silence_tqdm: bool = False,
@@ -190,7 +179,7 @@ class Pirate:
     def steal_bundles_for_timespan(
         self,
         resource_type: str,
-        request_params: Dict[str, Any],
+        request_params: Dict[str, Any] = None,
         time_attribute_name: str = "_lastUpdated",
         time_interval: Tuple[str, str] = None,
         stop_after_first_page: bool = False,
@@ -216,7 +205,7 @@ class Pirate:
         :return: A list of bundles with the queried information
         """
         bundles = []
-        current_params = request_params
+        current_params = {} if request_params is None else request_params.copy()
         if time_interval is not None:
             current_params[time_attribute_name] = (
                 f"ge{time_interval[0]}",
@@ -243,7 +232,7 @@ class Pirate:
         )
 
         if time_interval is None:
-            self._check_sorting(bundle, request_params)
+            self._check_sorting(bundle, current_params)
         # If we only want one page
         if stop_after_first_page:
             # Append the single bundle
@@ -253,12 +242,14 @@ class Pirate:
         progress_bar = tqdm(disable=silence_tqdm, desc="Query")
         while bundle is not None:
             progress_bar.update()
-            if time_interval is not None and bundle.total == 0:
-                warnings.warn(
-                    f"The bundle retrieved for the time between {time_interval[0]} and "
-                    f"{time_interval[1]} is empty. Do you want to choose another time "
-                    f"frame?"
-                )
+            if time_interval is not None:
+                total = self._get_total_from_bundle(bundle, count_entries=True)
+                if total is None or total == 0:
+                    warnings.warn(
+                        f"The bundle retrieved for the time between {time_interval[0]} and "
+                        f"{time_interval[1]} is empty. Do you want to choose another time "
+                        f"frame?"
+                    )
             # Add to the list
             bundles.append(bundle)
             # Find the next page, if it exists
@@ -301,7 +292,9 @@ class Pirate:
         # Convert the list into tuples
         return [(timespans[i], timespans[i + 1]) for i in range(len(timespans) - 1)]
 
-    def _return_count_from_request(self, request_params: Dict[str, Any]) -> int:
+    def _return_count_from_request(
+        self, request_params: Dict[str, Any]
+    ) -> Optional[int]:
         """
         Return the number of expected resources per page. If count has been defined in the
         request parameters, return it, otherwise choose the default count that has been given as
@@ -316,23 +309,10 @@ class Pirate:
             else self._default_count
         )
 
-    def _check_count(self, request_params: Dict[str, Any]) -> None:
-        """
-        Check whether the count is underneath the count limit threshold.
-
-        :param request_params: The parameters for the current request
-        """
-        if self._return_count_from_request(request_params) > self._max_count_limit:
-            warnings.warn(
-                f"It is recommended to not use a count value greater than"
-                f" {self._max_count_limit}."
-            )
-
     def _check_sorting(
         self,
         bundle: Optional[FHIRObj],
         request_params: Dict[str, Any],
-        given_count: int = None,
     ) -> None:
         """
         Perform some sanity checks on the request parameters.
@@ -340,33 +320,57 @@ class Pirate:
         :param bundle: An initial bundle with count=0 that is downloaded to check the amount of
         requests that will need to be done later
         :param request_params: The parameters for the current request
-        :param given_count: The desired amount of results per page
         """
-        if given_count is None:
-            given_count = self._return_count_from_request(request_params)
+        given_count = self._return_count_from_request(request_params)
+        total = self._get_total_from_bundle(bundle, count_entries=True)
+        if given_count is None or total is None:
+            return
         if (
             bundle is not None
-            and (bundle.total or 0) > given_count
+            and total > given_count
             and not any(k == "_sort" for k, _ in request_params.items())
         ):
             warnings.warn(
                 f"The bundle has multiple pages (_count = {given_count}, "
-                f"results = {bundle.total}) but no sorting method has been defined, "
+                f"results = {total}) but no sorting method has been defined, "
                 "which may yield incorrect results. We will set the sorting parameter to id."
             )
             request_params["_sort"] = "_id"
+
+    @staticmethod
+    def _get_total_from_bundle(
+        bundle: Optional[FHIRObj],
+        count_entries: bool = False,
+    ) -> Optional[int]:
+        """
+        Return the total attribute of a bundle or the number of entries.
+
+        :param bundle: The bundle for which we need to find the total
+        :param count_entries: Whether the number of entries should be counted instead
+        :return: The total attribute for this bundle or the total number of entries
+        """
+        if bundle is not None:
+            if count_entries and bundle.entry is not None:
+                return len(bundle.entry)
+            if bundle.total is not None:
+                assert isinstance(bundle.total, int)
+                return bundle.total
+        return None
 
     def get_bundle_total(
         self,
         resource_type: str,
         request_params: Dict[str, Any] = None,
+        count_entries: bool = False,
     ) -> Optional[int]:
         """
         Perform a request to return the total amount of bundles for a query.
 
         :param resource_type: The resource to query, e.g. Patient, DiagnosticReport
         :param request_params: The parameters for the current request
-        :return:
+        :param count_entries: Whether the number of entries should be counted instead
+        :return: The number of entries for this bundle, either given by the total attribute or by
+        counting the number of entries
         """
         request_params = {} if request_params is None else request_params
         request_params_string = self._concat_request_params(request_params)
@@ -374,11 +378,9 @@ class Pirate:
             f"{self.base_url}/{self.fhir_app_location}{resource_type}"
             f"?{request_params_string}"
         )
-        bundle = self._get_response(request_url)
-        if bundle is not None and bundle.total is not None:
-            assert isinstance(bundle.total, int)
-            return bundle.total
-        return None
+        return self._get_total_from_bundle(
+            bundle=self._get_response(request_url), count_entries=count_entries
+        )
 
     def sail_through_search_space(
         self,
@@ -393,7 +395,6 @@ class Pirate:
         Uses the multiprocessing module to speed up some queries. The time frame is
         divided into multiple time spans (as many as there are processes) and each smaller
         time frame is investigated simultaneously.
-
         :param resource_type: The resource to query, e.g. Patient, DiagnosticReport
         :param time_attribute_name: The time attribute that should be used to define the
         timespan; e.g. started for ImagingStudy, date for DiagnosticReport. The default value is
@@ -418,8 +419,6 @@ class Pirate:
         search_division_params = [
             k for k in request_params.keys() if k == time_attribute_name
         ]
-        # Check some basic things about the given parameters
-        self._check_count(request_params)
         # If they are, remove them and issue a warning
         if len(search_division_params) > 0:
             warnings.warn(
@@ -427,8 +426,12 @@ class Pirate:
                 f"in the request parameters. Please use the date_init (inclusive) and "
                 f"date_end (exclusive) parameters instead."
             )
-            # Pop all elements that refer to a date
-            [request_params.pop(el) for el in search_division_params]
+            # Remove all elements that refer to a date
+            request_params = {
+                key: request_params[key]
+                for key in request_params
+                if key not in search_division_params
+            }
         if not isinstance(date_init, datetime.date):
             date_init = parse(date_init)
         if not isinstance(date_end, datetime.date):
@@ -449,50 +452,31 @@ class Pirate:
             f"?{request_params_string}"
         )
         bundle = self._get_response(request_url)
-        given_count = self._return_count_from_request(request_params)
         self._check_sorting(bundle, request_params)
-        # If the current bundle has incredibly many results i.e. more than how many can
-        # be processed with the given count times a threshold value, then do use multiprocessing
-        use_multiprocess = (
-            bundle is not None
-            and (bundle.total or 0) > given_count * self._multiprocessing_limit
+        logging.info(
+            f"Running sail_through_search_space with {self.num_processes} processes."
         )
-        if use_multiprocess:
-            logging.info(
-                f"Running sail_through_search_space with {self.num_processes} processes."
+        # Divide the current time period into smaller spans
+        timespans = self._get_timespan_list(date_init, date_end)
+        pool = multiprocessing.Pool(processes=self.num_processes)
+        func = partial(
+            self.steal_bundles_for_timespan,
+            resource_type,
+            request_params,
+            time_attribute_name,
+            stop_after_first_page=False,
+            read_from_cache=read_from_cache,
+            silence_tqdm=True,
+        )
+        bundles = [
+            item
+            for sublist in tqdm(
+                pool.imap(func, timespans), total=len(timespans), desc="Query"
             )
-            # Divide the current time period into smaller spans
-            timespans = self._get_timespan_list(date_init, date_end)
-            pool = multiprocessing.Pool(processes=self.num_processes)
-            func = partial(
-                self.steal_bundles_for_timespan,
-                resource_type,
-                request_params,
-                time_attribute_name,
-                stop_after_first_page=False,
-                read_from_cache=read_from_cache,
-                silence_tqdm=True,
-            )
-            bundles = [
-                item
-                for sublist in tqdm(
-                    pool.imap(func, timespans), total=len(timespans), desc="Query"
-                )
-                for item in sublist
-            ]
-            pool.close()
-            pool.join()
-        else:
-            bundles = self.steal_bundles_for_timespan(
-                resource_type=resource_type,
-                request_params=request_params,
-                time_attribute_name=time_attribute_name,
-                time_interval=(date_init, date_end),
-                stop_after_first_page=False,
-                read_from_cache=read_from_cache,
-                silence_tqdm=False,
-            )
-
+            for item in sublist
+        ]
+        pool.close()
+        pool.join()
         return bundles
 
     @staticmethod
@@ -546,7 +530,6 @@ class Pirate:
         :return: A FHIR bundle containing the queried information
         """
         request_params = {} if request_params is None else request_params
-        self._check_count(request_params)
         logging.info(
             f"Querying each row of the DataFrame with {self.num_processes} processes."
         )
@@ -677,7 +660,6 @@ class Pirate:
         DataFrame
         """
         request_params = {} if request_params is None else request_params
-        self._check_count(request_params)
         logging.info(
             f"Querying each row of the DataFrame with {self.num_processes} processes."
         )

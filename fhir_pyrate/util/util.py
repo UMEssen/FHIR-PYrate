@@ -1,7 +1,5 @@
 import datetime
-import math
-import multiprocessing
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -38,23 +36,6 @@ def string_from_column(
     if sort:
         values.sort(reverse=sort_reverse)
     return separator.join(values)
-
-
-def set_num_processes(
-    num_processes: Optional[int], fraction: float = (3.0 / 4.0)
-) -> int:
-    """
-    Compute number of processes that should be used according to the number of CPUs.
-
-    :param num_processes: The number of processes to set, if it is none the number will be computed
-    :param fraction: The fraction of CPUs to consider
-    :return: The number of processes that will be used
-    """
-    if num_processes is None or num_processes > multiprocessing.cpu_count():
-        # Get three quarters of the total processes
-        return int(math.ceil((fraction) * multiprocessing.cpu_count()))
-    else:
-        return num_processes
 
 
 def get_datetime(dt_format: str = "%Y-%m-%d %H:%M:%S") -> str:
