@@ -483,7 +483,7 @@ six = ">=1.5"
 name = "python-dotenv"
 version = "0.20.0"
 description = "Read key-value pairs from a .env file and set them as environment variables"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -812,7 +812,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "fc3f423afa42d76301666ec226963887dadca29887f6e6e935c22fb3b2775b1e"
+content-hash = "113465a636da6564727870df07faeb71343ac17904a40d9bb941766a2f2778d5"
 
 [metadata.files]
 antlr4-python3-runtime = [
