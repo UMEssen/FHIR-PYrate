@@ -341,7 +341,7 @@ bundles = ...
 # Convert the returned bundles to a dataframe
 df = search.bundles_to_dataframe(
     bundles=bundles,
-    fhir_paths=["id", "code.coding", "identifier[0].code"],
+    fhir_paths=["id", ("code", "code.coding"), ("identifier", "identifier[0].code")],
 )
 ```
 **NOTE on [fhirpath-py](https://github.com/beda-software/fhirpath-py)**: This package is
