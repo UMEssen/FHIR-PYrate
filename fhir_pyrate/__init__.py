@@ -11,6 +11,3 @@ __all__ = [
     "Pirate",
     "DicomDownloader",
 ]
-
-# TODO: Check if this actually works like this
-# logging.getLogger("fhir-pyrate").addHandler(logging.NullHandler())

@@ -85,7 +85,7 @@ class Test(unittest.TestCase):
                                 "_format": "json",
                             },
                             # some servers have patient, some have subject
-                            fhir_paths=["id", f"{patient_ref}.reference"],
+                            fhir_paths=["id", ("patient", f"{patient_ref}.reference")],
                         )
                     else:
                         condition_df = search.query_to_dataframe(
@@ -100,20 +100,12 @@ class Test(unittest.TestCase):
                             date_init="2020-01-01",
                             date_end="2022-01-01",
                             # some servers have patient, some have subject
-                            fhir_paths=["id", f"{patient_ref}.reference"],
+                            fhir_paths=[
+                                ("condition", "id"),
+                                ("patient", f"{patient_ref}.reference"),
+                            ],
                         )
-                    condition_df.dropna(
-                        axis=0, inplace=True, how="any"
-                    )  # Remove the rows with invalid values
-                    condition_df.rename(
-                        {
-                            "id": "condition_id",
-                            "patient.reference": "patient",
-                            "subject.reference": "patient",
-                        },
-                        inplace=True,
-                        axis=1,
-                    )
+                    condition_df.dropna(axis=0, inplace=True, how="any")
                     assert len(condition_df) > 0
                     diagnostic_df = search.trade_rows_for_dataframe(
                         df=condition_df.head(1),

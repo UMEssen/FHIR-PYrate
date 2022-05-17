@@ -602,7 +602,7 @@ class Pirate:
         self,
         bundles: List[FHIRObj],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[str] = None,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         single_process: float = False,
     ) -> pd.DataFrame:
         """
@@ -612,9 +612,49 @@ class Pirate:
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame
+        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+        future column with (column_name, fhir_path).
         :param single_process: Whether the bundles should be processed sequentially
         :return: A pandas DataFrame containing the queried information
+
+        **NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as
+        modulus (`mod`) or integer division (`div`), and this may be problematic if there are
+        fields of the resource that use these terms as attributes.
+        It is actually the case in many generated
+        [public FHIR resources](https://hapi.fhir.org/baseDstu2/DiagnosticReport/133015).
+        In this case the term `text.div` cannot be used, and you should use a processing function
+        instead (as in 2.).
+
+        **NOTE 2 on FHIR paths**: Since it is possible to specify the column name with a tuple
+        `(key, fhir_path)`, it is important to know that if a key is used multiple times for different
+        pieces of information but for the same resource, the field will be only filled with the first
+        occurence that is not None.
+        ```python
+        df = search.query_to_dataframe(
+            bundles_function=search.steal_bundles,
+            resource_type="DiagnosticReport",
+            request_params={
+                "_count": 1,
+                "_include": "DiagnosticReport:subject",
+            },
+            # CORRECT EXAMPLE
+            # In this case subject.reference is None for patient, so all patients will have their Patient.id
+            fhir_paths=[("patient", "subject.reference"), ("patient", "Patient.id")],
+            # And Patient.id is None for DiagnosticReport, so they will have their subject.reference
+            # fhir_paths=[("patient", "Patient.id"), ("patient", "subject.reference")],
+            # WRONG EXAMPLE
+            # In this case, only the first code will be stored
+            # fhir_paths=[("code", "code.coding[0].code"), ("code", "code.coding[1].code")],
+            # CORRECT EXAMPLE
+            # Whenever we are working with codes, it is usually better to use the `where` argument
+            # and to store the values using a meaningful name
+            # fhir_paths=[
+            #     ("code_abc", "code.coding.where(system = 'ABC').code"),
+            #     ("code_def", "code.coding.where(system = 'DEF').code")
+            # ],
+            stop_after_first_page=True,
+        )
+        ```
         """
         if fhir_paths is not None:
             try:
@@ -625,8 +665,12 @@ class Pirate:
                 f"The selected process_function {process_function.__name__} will be "
                 f"overwritten."
             )
+            fhir_paths_with_name = [
+                (path[0], path[1]) if isinstance(path, tuple) else (path, path)
+                for path in fhir_paths
+            ]
             if not self.silence_fhirpath_warning:
-                for path in fhir_paths:
+                for _, path in fhir_paths_with_name:
                     for token in self.FHIRPATH_INVALID_TOKENS:
                         if (
                             re.search(
@@ -646,7 +690,7 @@ class Pirate:
                                 f"they are intended, you can silence the warning when "
                                 f"initializing the class."
                             )
-            process_function = partial(parse_fhir_path, fhir_paths=fhir_paths)
+            process_function = partial(parse_fhir_path, fhir_paths=fhir_paths_with_name)
         if self.num_processes > 1 and not single_process:
             pool = multiprocessing.Pool(self.num_processes)
             results = [
@@ -670,7 +714,7 @@ class Pirate:
         resource_type: str,
         df_constraints: Dict[str, Union[str, Tuple[str, str]]],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[str] = None,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         request_params: Dict[str, Any] = None,
         stop_after_first_page: bool = False,
         read_from_cache: bool = False,
@@ -694,7 +738,9 @@ class Pirate:
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame
+        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+        future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
+        functions for notes on how to use the FHIR paths.
         :param request_params: The parameters for the query, e.g. _count, _id
         :param stop_after_first_page: Whether only the first page should be returned or whether
         we should return bundles as long as there are pages
@@ -779,7 +825,7 @@ class Pirate:
         self,
         bundles_function: Callable,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[str] = None,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         disable_multiprocessing_process_function: float = False,
         **kwargs: Any,
     ) -> pd.DataFrame:
@@ -792,9 +838,13 @@ class Pirate:
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame
+        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+        future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
+        functions for notes on how to use the FHIR paths.
         :param disable_multiprocessing_process_function: Whether the bundles should be processed
         sequentially to build the DataFrame
+        :param kwargs: The arguments that will be passed to the `bundles_function` function,
+        please refer to the documentation of the respective methods.
         :return: A pandas DataFrame containing the queried information
         """
         if fhir_paths is not None:
