@@ -376,17 +376,17 @@ df = search.query_to_dataframe(
     # In this case subject.reference is None for patient, so all patients will have their Patient.id
     fhir_paths=[("patient", "subject.reference"), ("patient", "Patient.id")],
     # And Patient.id is None for DiagnosticReport, so they will have their subject.reference
-    # fhir_paths=[("patient", "Patient.id"), ("patient", "subject.reference")],
+    fhir_paths=[("patient", "Patient.id"), ("patient", "subject.reference")],
     # WRONG EXAMPLE
     # In this case, only the first code will be stored
-    # fhir_paths=[("code", "code.coding[0].code"), ("code", "code.coding[1].code")],
+    fhir_paths=[("code", "code.coding[0].code"), ("code", "code.coding[1].code")],
     # CORRECT EXAMPLE
     # Whenever we are working with codes, it is usually better to use the `where` argument and
     # to store the values using a meaningful name
-    # fhir_paths=[
-    #     ("code_abc", "code.coding.where(system = 'ABC').code"),
-    #     ("code_def", "code.coding.where(system = 'DEF').code")
-    # ],
+    fhir_paths=[
+        ("code_abc", "code.coding.where(system = 'ABC').code"),
+        ("code_def", "code.coding.where(system = 'DEF').code"),
+    ],
     stop_after_first_page=True,
 )
 ```
