@@ -26,7 +26,7 @@ class Miner:
     def __init__(
         self,
         target_regex: str,
-        negation_regex: str = r"(kein|keine|ohne)[^.]*",
+        negation_regex: str = None,
         decode_text: Callable = None,
         nlp_lib: str = "de_core_news_sm",
         num_processes: int = 1,
@@ -98,11 +98,14 @@ class Miner:
                 for x in sentences
                 if re.search(self.target_regex, x.text, re.I | re.M) is not None
             ]
-            negation_sentences = [
-                re.search(self.negation_regex, x.text, re.I | re.M) is not None
-                for x in relevant_sentences
-            ]
-            is_target = not any(negation_sentences)
+            if self.negation_regex is not None:
+                negation_sentences = [
+                    re.search(self.negation_regex, x.text, re.I | re.M) is not None
+                    for x in relevant_sentences
+                ]
+                is_target = not any(negation_sentences)
+            else:
+                is_target = len(relevant_sentences) > 0
 
         return is_target
 
