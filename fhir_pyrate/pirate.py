@@ -490,22 +490,50 @@ class Pirate:
         return bundles
 
     @staticmethod
+    def _adjust_df_constraints(
+        df_constraints: Dict[str, Union[str, Tuple[str, str]]]
+    ) -> Dict[str, Tuple[str, str]]:
+        """
+        Adjust the constraint dictionary to always have the same structure, which makes it easier
+        to parse it for other function.
+
+        :param df_constraints: A dictionary that specifies the constraints that should be applied
+        during a search query and that refer to a DataFrame
+        :return: A standardized request dictionary
+        """
+        return {
+            fhir_identifier: (
+                ("", second_term) if isinstance(second_term, str) else second_term
+            )
+            for fhir_identifier, second_term in df_constraints.items()
+        }
+
+    @staticmethod
     def _get_request_params_for_sample(
         df: pd.DataFrame,
         request_params: Dict[str, Any],
-        df_constraints: Dict[str, Union[str, Tuple[str, str]]],
+        df_constraints: Dict[str, Tuple[str, str]],
     ) -> List[Dict[str, str]]:
+        """
+        Given a DataFrame and a dictionary of constraints regarding the DataFrame,
+        build a dictionary containing all the request parameters.
+
+        :param df: The DataFrame that contains the constraints that should be applied
+        :param request_params: The parameters for the query that do not depend on the DataFrame
+        :param df_constraints: A dictionary that specifies the constraints that should be applied
+        during a search query and that refer to a DataFrame
+        :return: A list of dictionary constraint for each row of the DataFrame
+        """
         return [
             dict(
                 {
                     fhir_identifier: (
-                        row[df.columns.get_loc(second_term)]
-                        if isinstance(second_term, str)
-                        else str(second_term[0])
-                        + str(row[df.columns.get_loc(second_term[1])])
+                        (system + row[df.columns.get_loc(value)].split("/")[0])
+                        if fhir_identifier == "_id"
+                        else system + row[df.columns.get_loc(value)]
                     )
                     # Concatenate the given system identifier string with the desired identifier
-                    for fhir_identifier, second_term in df_constraints.items()
+                    for fhir_identifier, (system, value) in df_constraints.items()
                 },
                 **request_params,
             )
@@ -544,7 +572,9 @@ class Pirate:
             f"Querying each row of the DataFrame with {self.num_processes} processes."
         )
         request_params_per_sample = self._get_request_params_for_sample(
-            df=df, request_params=request_params, df_constraints=df_constraints
+            df=df,
+            request_params=request_params,
+            df_constraints=self._adjust_df_constraints(df_constraints),
         )
         pool = multiprocessing.Pool(self.num_processes)
         func = partial(
@@ -682,20 +712,16 @@ class Pirate:
         logging.info(
             f"Querying each row of the DataFrame with {self.num_processes} processes."
         )
+        adjusted_constraints = self._adjust_df_constraints(df_constraints)
         req_params_per_sample = self._get_request_params_for_sample(
-            df=df, request_params=request_params, df_constraints=df_constraints
+            df=df, request_params=request_params, df_constraints=adjusted_constraints
         )
         input_params_per_sample = [
             {
                 # The name of the parameter will be the same as the column name
                 # The value will be the same as the value in that column for that row
-                (second_term if isinstance(second_term, str) else second_term[1]): (
-                    row[df.columns.get_loc(second_term)]
-                    if isinstance(second_term, str)
-                    else str(row[df.columns.get_loc(second_term[1])])
-                )
-                # Concatenate the given system identifier string with the desired identifier
-                for _, second_term in df_constraints.items()
+                value: str(row[df.columns.get_loc(value)])
+                for _, (_, value) in adjusted_constraints.items()
             }
             for row in df.itertuples(index=False)
         ]
