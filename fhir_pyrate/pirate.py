@@ -572,7 +572,7 @@ class Pirate:
         self,
         bundles: List[FHIRObj],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[str] = None,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         single_process: float = False,
     ) -> pd.DataFrame:
         """
@@ -582,7 +582,8 @@ class Pirate:
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame
+        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+        future column with (column_name, fhir_path).
         :param single_process: Whether the bundles should be processed sequentially
         :return: A pandas DataFrame containing the queried information
         """
@@ -595,8 +596,12 @@ class Pirate:
                 f"The selected process_function {process_function.__name__} will be "
                 f"overwritten."
             )
+            fhir_paths_with_name = [
+                (path[0], path[1]) if isinstance(path, tuple) else (path, path)
+                for path in fhir_paths
+            ]
             if not self.silence_fhirpath_warning:
-                for path in fhir_paths:
+                for _, path in fhir_paths_with_name:
                     for token in self.FHIRPATH_INVALID_TOKENS:
                         if (
                             re.search(
@@ -616,7 +621,7 @@ class Pirate:
                                 f"they are intended, you can silence the warning when "
                                 f"initializing the class."
                             )
-            process_function = partial(parse_fhir_path, fhir_paths=fhir_paths)
+            process_function = partial(parse_fhir_path, fhir_paths=fhir_paths_with_name)
         if self.num_processes > 1 and not single_process:
             pool = multiprocessing.Pool(self.num_processes)
             results = [
@@ -640,7 +645,7 @@ class Pirate:
         resource_type: str,
         df_constraints: Dict[str, Union[str, Tuple[str, str]]],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[str] = None,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         request_params: Dict[str, Any] = None,
         stop_after_first_page: bool = False,
         read_from_cache: bool = False,
@@ -664,7 +669,8 @@ class Pirate:
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame
+        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+        future column with (column_name, fhir_path).
         :param request_params: The parameters for the query, e.g. _count, _id
         :param stop_after_first_page: Whether only the first page should be returned or whether
         we should return bundles as long as there are pages
@@ -753,7 +759,7 @@ class Pirate:
         self,
         bundles_function: Callable,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[str] = None,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         disable_multiprocessing_process_function: float = False,
         **kwargs: Any,
     ) -> pd.DataFrame:
@@ -766,7 +772,8 @@ class Pirate:
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame
+        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+        future column with (column_name, fhir_path).
         :param disable_multiprocessing_process_function: Whether the bundles should be processed
         sequentially to build the DataFrame
         :return: A pandas DataFrame containing the queried information
