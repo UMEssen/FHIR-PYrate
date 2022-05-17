@@ -333,7 +333,9 @@ df = search.bundles_to_dataframe(
 3. Extract only part of the information using the `fhir_paths` argument. Here you can put a list
    of string that follow the [FHIRPath](https://hl7.org/fhirpath/) standard. For this purpose, we
    use the [fhirpath-py](https://github.com/beda-software/fhirpath-py) package, which uses the
-   [antr4](https://github.com/antlr/antlr4) parser.
+   [antr4](https://github.com/antlr/antlr4) parser. Additionally, you can use tuples like `(key,
+   fhir_path)`, where `key` will be the name of the column the information derived from that
+   FHIRPath will be stored.
 ```python
 # Create bundles with Pirate
 search = ...
@@ -341,7 +343,7 @@ bundles = ...
 # Convert the returned bundles to a dataframe
 df = search.bundles_to_dataframe(
     bundles=bundles,
-    fhir_paths=["id", "code.coding", "identifier[0].code"],
+    fhir_paths=["id", ("code", "code.coding"), ("identifier", "identifier[0].code")],
 )
 ```
 **NOTE on [fhirpath-py](https://github.com/beda-software/fhirpath-py)**: This package is
@@ -351,12 +353,44 @@ so if you want to use this feature you need to install the package separately or
 ```
 pip install git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
-**NOTE on FHIRPaths**: The standard also allows some primitive math operations such as modulus
+**NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as modulus
 (`mod`) or integer division (`div`), and this may be problematic if there are fields of the
 resource that use these terms as attributes.
 It is actually the case in many generated [public FHIR resources](https://hapi.fhir.org/baseDstu2/DiagnosticReport/133015).
 In this case the term `text.div` cannot be used, and you should use a processing function
 instead (as in 2.).
+
+**NOTE 2 on FHIR paths**: Since it is possible to specify the column name with a tuple
+`(key, fhir_path)`, it is important to know that if a key is used multiple times for different
+pieces of information but for the same resource, the field will be only filled with the first
+occurence that is not None.
+```python
+df = search.query_to_dataframe(
+    bundles_function=search.steal_bundles,
+    resource_type="DiagnosticReport",
+    request_params={
+        "_count": 1,
+        "_include": "DiagnosticReport:subject",
+    },
+    # CORRECT EXAMPLE
+    # In this case subject.reference is None for patient, so all patients will have their Patient.id
+    fhir_paths=[("patient", "subject.reference"), ("patient", "Patient.id")],
+    # And Patient.id is None for DiagnosticReport, so they will have their subject.reference
+    fhir_paths=[("patient", "Patient.id"), ("patient", "subject.reference")],
+    # WRONG EXAMPLE
+    # In this case, only the first code will be stored
+    fhir_paths=[("code", "code.coding[0].code"), ("code", "code.coding[1].code")],
+    # CORRECT EXAMPLE
+    # Whenever we are working with codes, it is usually better to use the `where` argument and
+    # to store the values using a meaningful name
+    fhir_paths=[
+        ("code_abc", "code.coding.where(system = 'ABC').code"),
+        ("code_def", "code.coding.where(system = 'DEF').code"),
+    ],
+    stop_after_first_page=True,
+)
+```
+
 
 In case you are not sure whether we have collected the same entry multiple times
 (i.e. when using multiprocessing in `sail_through_search_space` with a resource that uses a time

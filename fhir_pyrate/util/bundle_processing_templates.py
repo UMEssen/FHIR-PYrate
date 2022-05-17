@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from fhir_pyrate.util import FHIRObj
 
@@ -59,7 +59,7 @@ def recurse_resource(
         base_dict[field_name[1:]] = resource
 
 
-def parse_fhir_path(bundle: FHIRObj, fhir_paths: List[str]) -> List[Dict]:
+def parse_fhir_path(bundle: FHIRObj, fhir_paths: List[Tuple[str, str]]) -> List[Dict]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes, which have been specified using a list of FHIRPath expressions (
@@ -67,7 +67,9 @@ def parse_fhir_path(bundle: FHIRObj, fhir_paths: List[str]) -> List[Dict]:
 
     :param bundle: The bundle returned by the FHIR request
     :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-    DataFrame
+    DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+    future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
+    functions for notes on how to use the FHIR paths.
     :return: A dictionary containing the parsed information
     """
     from fhirpathpy import compile
@@ -75,13 +77,14 @@ def parse_fhir_path(bundle: FHIRObj, fhir_paths: List[str]) -> List[Dict]:
     records: List[Dict] = []
     for _ in bundle.entry or []:
         records.append({})
-    for path in fhir_paths:
+    for name, path in fhir_paths:
         compiled_path = compile(path=path)
         for i, base_dict in enumerate(records):
             resource = bundle.entry[i].resource
-            base_dict[path] = compiled_path(resource=resource.to_dict())
-            if len(base_dict[path]) == 0:
-                base_dict[path] = None
-            elif len(base_dict[path]) == 1:
-                base_dict[path] = next(iter(base_dict[path]))
+            if name not in base_dict or base_dict[name] is None:
+                base_dict[name] = compiled_path(resource=resource.to_dict())
+            if len(base_dict[name]) == 0:
+                base_dict[name] = None
+            elif len(base_dict[name]) == 1:
+                base_dict[name] = next(iter(base_dict[name]))
     return records
