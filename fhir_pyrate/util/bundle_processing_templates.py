@@ -68,7 +68,8 @@ def parse_fhir_path(bundle: FHIRObj, fhir_paths: List[Tuple[str, str]]) -> List[
     :param bundle: The bundle returned by the FHIR request
     :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
     DataFrame, alternatively, a list of tuples can be used to specify the column name of the
-    future column with (column_name, fhir_path).
+    future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
+    functions for notes on how to use the FHIR paths.
     :return: A dictionary containing the parsed information
     """
     from fhirpathpy import compile
