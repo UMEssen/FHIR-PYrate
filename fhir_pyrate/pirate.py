@@ -587,13 +587,15 @@ class Pirate:
         :param single_process: Whether the bundles should be processed sequentially
         :return: A pandas DataFrame containing the queried information
 
-        **NOTE 1 on FHIRPaths**: The standard also allows some primitive math operations such as modulus
-        (`mod`) or integer division (`div`), and this may be problematic if there are fields of the
-        resource that use these terms as attributes.
-        It is actually the case in many generated [public FHIR resources](https://hapi.fhir.org/baseDstu2/DiagnosticReport/133015).
+        **NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as
+        modulus (`mod`) or integer division (`div`), and this may be problematic if there are
+        fields of the resource that use these terms as attributes.
+        It is actually the case in many generated
+        [public FHIR resources](https://hapi.fhir.org/baseDstu2/DiagnosticReport/133015).
         In this case the term `text.div` cannot be used, and you should use a processing function
         instead (as in 2.).
-        **NOTE 2 on FHIRPaths**: Since it is possible to specify the column name with a tuple
+
+        **NOTE 2 on FHIR paths**: Since it is possible to specify the column name with a tuple
         `(key, fhir_path)`, it is important to know that if a key is used multiple times for different
         pieces of information but for the same resource, the field will be only filled with the first
         occurence that is not None.
