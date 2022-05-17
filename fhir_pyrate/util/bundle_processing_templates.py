@@ -80,7 +80,8 @@ def parse_fhir_path(bundle: FHIRObj, fhir_paths: List[Tuple[str, str]]) -> List[
         compiled_path = compile(path=path)
         for i, base_dict in enumerate(records):
             resource = bundle.entry[i].resource
-            base_dict[name] = compiled_path(resource=resource.to_dict())
+            if name not in base_dict or base_dict[name] is None:
+                base_dict[name] = compiled_path(resource=resource.to_dict())
             if len(base_dict[name]) == 0:
                 base_dict[name] = None
             elif len(base_dict[name]) == 1:
