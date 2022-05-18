@@ -524,11 +524,17 @@ class Pirate:
         during a search query and that refer to a DataFrame
         :return: A list of dictionary constraint for each row of the DataFrame
         """
+        for _, (_, value) in df_constraints.items():
+            if df[value].isnull().any():
+                raise ValueError(
+                    f"The column {value} contains NaN values, "
+                    f"and thus it cannot be used to build queries."
+                )
         return [
             dict(
                 {
                     fhir_identifier: (
-                        (system + row[df.columns.get_loc(value)].split("/")[0])
+                        (system + row[df.columns.get_loc(value)].split("/")[-1])
                         if fhir_identifier == "_id"
                         else system + row[df.columns.get_loc(value)]
                     )
