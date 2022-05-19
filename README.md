@@ -5,7 +5,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/UMEssen/FHIR-PYrate">
-    <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/logo.svg" alt="Logo" width="435" height="300">
+    <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/logo.svg" alt="Logo" width="440" height="338">
   </a>
 </div>
 
@@ -37,7 +37,7 @@ problems with the authentication (or anything else really), please just create a
 
 <br />
 <div align="center">
-  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/resources.svg" alt="Resources" width="585" height="351">
+  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/resources.svg" alt="Resources" width="630" height="385">
 </div>
 
 <!-- TABLE OF CONTENTS -->
@@ -415,7 +415,7 @@ You can find an example in [Example 3](https://github.com/UMEssen/FHIR-PYrate/bl
 
 <br />
 <div align="center">
-  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/miner.svg" alt="Logo" width="642" height="219">
+  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/miner.svg" alt="Logo" width="718" height="230">
 </div>
 <br />
 
