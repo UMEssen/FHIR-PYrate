@@ -91,7 +91,9 @@ class Miner:
 
         if contains_target:
             sentences = [i for i in self.nlp(report_text).sents]
-            sentences = self._filter_report_header(sentences, filter_text=filter_text)
+            sentences = self._filter_report_header(
+                sentences, filter_text=filter_text.lower()
+            )
 
             relevant_sentences = [
                 x
