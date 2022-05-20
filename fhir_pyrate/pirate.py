@@ -87,7 +87,6 @@ class Pirate:
         self.num_processes = num_processes
         self._print_request_url = print_request_url
         self._time_format = time_format
-        self._today = datetime.date.today().strftime(self._time_format)
         self._default_count = default_count
         self.bundle_cache_folder = None
         self.silence_fhirpath_warning = silence_fhirpath_warning
@@ -395,9 +394,9 @@ class Pirate:
     def sail_through_search_space(
         self,
         resource_type: str,
-        time_attribute_name: str = "_lastUpdated",
-        date_init: Union[str, datetime.date] = "2010-01-01",
-        date_end: Union[str, datetime.date] = None,
+        time_attribute_name: str,
+        date_init: Union[str, datetime.date],
+        date_end: Union[str, datetime.date],
         request_params: Dict[str, Any] = None,
         read_from_cache: bool = False,
     ) -> List[FHIRObj]:
@@ -405,10 +404,10 @@ class Pirate:
         Uses the multiprocessing module to speed up some queries. The time frame is
         divided into multiple time spans (as many as there are processes) and each smaller
         time frame is investigated simultaneously.
+
         :param resource_type: The resource to query, e.g. Patient, DiagnosticReport
         :param time_attribute_name: The time attribute that should be used to define the
-        timespan; e.g. started for ImagingStudy, date for DiagnosticReport. The default value is
-        _lastUpdated, because it exists in all resources
+        timespan; e.g. started for ImagingStudy, date for DiagnosticReport
         :param date_init: The start of the timespan for time_attribute_name
         :param date_end: The end of the timespan for time_attribute_name
         :param request_params:  The parameters for the query, e.g. _count, _id
@@ -416,13 +415,6 @@ class Pirate:
         in case they have already been computed
         :return: A FHIR bundle containing the queried information for all timespans
         """
-        if time_attribute_name == "_lastUpdated":
-            logging.info(
-                "The default value for time_attribute_name is _lastUpdated. Is this "
-                "desired or did you forget to select a value?"
-            )
-        if date_end is None:
-            date_end = self._today
         # Check if the date parameters that we use for multiprocessing are already included in
         # the request parameters
         request_params = {} if request_params is None else request_params
@@ -576,7 +568,10 @@ class Pirate:
         single_process: float = False,
     ) -> pd.DataFrame:
         """
-        Convert a bundle into a DataFrame.
+        Convert a bundle into a DataFrame using either the `flatten_data` function (default),
+        FHIR paths or a custom processing function. For the case of `flatten_data` and the FHIR
+        paths, each row of the DataFrame will represent a resource. In the custom processing
+        function each bundle can be handled as one pleases.
 
         :param bundles: The bundles to transform
         :param process_function: The transformation function going through the entries and
