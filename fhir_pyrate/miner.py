@@ -74,7 +74,7 @@ class Miner:
         self,
         report_text: str,
         filter_text: str = "",
-    ) -> Optional[List[str]]:
+    ) -> Optional[List[Span]]:
         """
         Checks whether a report contains the relevant keyword.
 
