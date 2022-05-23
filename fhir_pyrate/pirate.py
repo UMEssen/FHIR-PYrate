@@ -34,6 +34,9 @@ class Pirate:
     :param bundle_cache_folder: Whether bundles should be stored for later use, and where
     :param silence_fhirpath_warning: Whether the FHIR path warning regarding already existing
     expressions should be silenced
+    :param session: An already authenticated request.Session that can be used to run the FHIR
+    queries.
+    :param optional_get_params: Optional parameters that will be passed to the session's get calls
     """
 
     FHIRPATH_INVALID_TOKENS = [
@@ -63,6 +66,8 @@ class Pirate:
         default_count: int = None,
         bundle_cache_folder: Union[str, Path] = None,
         silence_fhirpath_warning: bool = False,
+        session: requests.Session = None,
+        optional_get_params: Dict[Any, Any] = None,
     ):
         # Remove the last character if they added it
         url_search = re.search(
@@ -80,10 +85,17 @@ class Pirate:
             else url_search.group(2) + "/"
         )
         self.auth = auth
-        if self.auth is not None:
+        self._close_session_on_exit = False
+        if session is not None:
+            self.session = session
+        elif self.auth is not None:
             self.session = self.auth.session
         else:
             self.session = requests.Session()
+            self._close_session_on_exit = True
+        self.optional_get_params = (
+            optional_get_params if optional_get_params is not None else {}
+        )
         self.num_processes = num_processes
         self._print_request_url = print_request_url
         self._time_format = time_format
@@ -103,7 +115,7 @@ class Pirate:
 
     def close(self) -> None:
         # Only close the session if it does not come from an authentication class
-        if self.auth is None:
+        if self._close_session_on_exit:
             self.session.close()
 
     def __exit__(
@@ -135,18 +147,15 @@ class Pirate:
         ]
         return "&".join(params)
 
-    def _get_response(
-        self, request_url: str, cookies: Dict = None
-    ) -> Optional[FHIRObj]:
+    def _get_response(self, request_url: str) -> Optional[FHIRObj]:
         """
         Performs the API request and returns the response as a dictionary.
 
         :param request_url: The request string
-        :param cookies: A dictionary of cookies that should be added to the request
         :return: A FHIR bundle
         """
         try:
-            response = self.session.get(request_url, cookies=cookies)
+            response = self.session.get(request_url, **self.optional_get_params)
             if self._print_request_url:
                 print(request_url)
             response.raise_for_status()
