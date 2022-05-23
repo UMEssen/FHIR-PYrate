@@ -4,7 +4,7 @@ import re
 import subprocess
 import traceback
 from functools import partial
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 import pandas as pd
 import spacy
@@ -74,21 +74,21 @@ class Miner:
         self,
         report_text: str,
         filter_text: str = "",
-    ) -> bool:
+    ) -> Optional[List[Span]]:
         """
         Checks whether a report contains the relevant keyword.
 
         :param report_text: The text to be searched
         :param filter_text: String that can be used to filter out some sentences that do not
         contain interesting information
-        :return: Returns bool which will be true if the report contains the relevant keywords
+        :return: Returns a list of SpaCy sentences that match the RegEx, but do not match the
+        negation regex, or None if no sentences were found
         """
-        is_target = False
         if self.decode_text is not None:
             report_text = self.decode_text(report_text)
         report_text = report_text.lower()
         contains_target = re.search(self.target_regex, report_text, re.I | re.M)
-
+        relevant_sentences = []
         if contains_target:
             sentences = [i for i in self.nlp(report_text).sents]
             sentences = self._filter_report_header(
@@ -105,11 +105,12 @@ class Miner:
                     re.search(self.negation_regex, x.text, re.I | re.M) is not None
                     for x in relevant_sentences
                 ]
-                is_target = not any(negation_sentences)
-            else:
-                is_target = len(relevant_sentences) > 0
-
-        return is_target
+                relevant_sentences = [
+                    x
+                    for i, x in enumerate(relevant_sentences)
+                    if not negation_sentences[i]
+                ]
+        return relevant_sentences if len(relevant_sentences) > 0 else None
 
     def nlp_on_dataframe(
         self,
@@ -123,43 +124,44 @@ class Miner:
 
         :param df: Dataframe containing all reports
         :param text_column_name: The column that should be searched
-        :param new_column_name: The name of the new column that will be added
+        :param new_column_name: The name of the new column that will be added to indicate whether the
+        RegEx was found and to display the sentences.
         :param filter_text: String that can be used to filter out some sentences that do not
         contain interesting information
-        :return: The input DataFrame with a new column telling us whether the desired text was
-        found or not.
+        :return: The input DataFrame with two new columns: The `new_column_name` tells us
+        whether the desired text was found or not, the `new_column_name`_sentences column returns a
+        List of sentences (in the form of already processed SpaCy sentences).
         """
+        func = partial(
+            self._check_diagnostic_report,
+            filter_text=filter_text,
+        )
+        texts = [row for row in df[text_column_name].values]
+        tqdm_text = f"Searching for Sentences with {self.target_regex}"
+        if self.negation_regex is not None:
+            tqdm_text += f" and without {self.negation_regex}"
         if self.num_processes > 1:
             pool = multiprocessing.Pool(self.num_processes)
-            df[new_column_name] = [
+            results = [
                 result
                 for result in tqdm(
-                    pool.imap(
-                        partial(
-                            self._check_diagnostic_report,
-                            filter_text=filter_text,
-                        ),
-                        [row[text_column_name] for _, row in df.iterrows()],
-                    ),
+                    pool.imap(func, texts),
                     total=len(df),
-                    desc=f"Searching for {self.target_regex}",
+                    desc=tqdm_text,
                 )
             ]
             pool.close()
             pool.join()
         else:
-            df[new_column_name] = [
+            results = [
                 result
                 for result in tqdm(
-                    [
-                        self._check_diagnostic_report(
-                            row[text_column_name], filter_text=filter_text
-                        )
-                        for _, row in df.iterrows()
-                    ],
+                    [func(text) for text in texts],
                     total=len(df),
-                    desc=f"Searching for {self.target_regex}",
+                    desc=tqdm_text,
                 )
             ]
 
+        df[new_column_name + "_sentences"] = results
+        df[new_column_name] = ~df[new_column_name + "_sentences"].isna()
         return df
