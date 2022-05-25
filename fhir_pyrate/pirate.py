@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import json
 import logging
+import math
 import multiprocessing
 import re
 import traceback
@@ -248,16 +249,23 @@ class Pirate:
         bundle = self._get_response(
             f"{self.base_url}/{self.fhir_app_location}{resource_type}?{request_params_string}"
         )
-
         if time_interval is None:
             self._check_sorting(bundle, current_params)
+
+        bundle_total = None
         # If we only want one page
         if stop_after_first_page:
             # Append the single bundle
             if bundle is not None:
                 bundles.append(bundle)
             bundle = None
-        progress_bar = tqdm(disable=silence_tqdm, desc="Query")
+            bundle_total = 1
+        else:
+            total = self._get_total_from_bundle(bundle, count_entries=False)
+            n_entries = self._get_total_from_bundle(bundle, count_entries=True)
+            if total and n_entries:
+                bundle_total = math.ceil(total / n_entries)
+        progress_bar = tqdm(disable=silence_tqdm, desc="Query", total=bundle_total)
         while bundle is not None:
             progress_bar.update()
             if time_interval is not None:
@@ -679,7 +687,11 @@ class Pirate:
             pool.close()
             pool.join()
         else:
-            results = [item for bundle in bundles for item in process_function(bundle)]
+            results = [
+                item
+                for bundle in tqdm(bundles, total=len(bundles), desc="Build DF")
+                for item in process_function(bundle)
+            ]
         return pd.DataFrame(results)
 
     def trade_rows_for_dataframe(
