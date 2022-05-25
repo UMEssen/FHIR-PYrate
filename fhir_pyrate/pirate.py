@@ -679,7 +679,11 @@ class Pirate:
             pool.close()
             pool.join()
         else:
-            results = [item for bundle in bundles for item in process_function(bundle)]
+            results = [
+                item
+                for bundle in tqdm(bundles, total=len(bundles), desc="Build DF")
+                for item in process_function(bundle)
+            ]
         return pd.DataFrame(results)
 
     def trade_rows_for_dataframe(
