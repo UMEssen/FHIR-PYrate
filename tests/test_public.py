@@ -62,7 +62,7 @@ class Test(unittest.TestCase):
                     value_df = search.query_to_dataframe(
                         bundles_function=search.steal_bundles,
                         resource_type="ValueSet",
-                        stop_after_first_page=True,
+                        num_pages=1,
                         request_params={"_sort": "_id"},
                     )
                     assert len(value_df) > 0
@@ -97,7 +97,7 @@ class Test(unittest.TestCase):
                                 "_format": "json",
                             },
                             time_attribute_name="_lastUpdated",
-                            date_init="2020-01-01",
+                            date_init="2021-01-01",
                             date_end="2022-01-01",
                             # some servers have patient, some have subject
                             fhir_paths=[
