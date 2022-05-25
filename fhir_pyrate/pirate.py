@@ -260,8 +260,8 @@ class Pirate:
         if bundle_total == -1:
             total = self._get_total_from_bundle(bundle, count_entries=False)
             n_entries = self._get_total_from_bundle(bundle, count_entries=True)
-            if total is not None and n_entries is not None:
-                bundle_total = math.ceil(total * 1.0 / n_entries)
+            if total and n_entries:
+                bundle_total = math.ceil(total / n_entries)
             else:
                 bundle_total = math.inf
         progress_bar = tqdm(disable=silence_tqdm, desc="Query", total=bundle_total)
