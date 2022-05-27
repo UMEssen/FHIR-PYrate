@@ -171,7 +171,7 @@ class Pirate:
         self,
         resource_type: str,
         request_params: Dict[str, Any] = None,
-        stop_after_first_page: bool = False,
+        num_pages: int = -1,
         read_from_cache: bool = False,
         silence_tqdm: bool = False,
     ) -> List[FHIRObj]:
@@ -180,8 +180,9 @@ class Pirate:
 
         :param resource_type: The resource to be queried, e.g. DiagnosticReport
         :param request_params: The parameters for the query, e.g. _count, _id
-        :param stop_after_first_page: Whether only the first page should be returned or whether
-        we should return bundles as long as there are pages
+        :param num_pages: The number of pages of bundles that should be returned, the default is
+        -1 (all bundles), with any other value exactly that value of bundles will be returned,
+        assuming that there are that many
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
         :param silence_tqdm: Whether tqdm should be disabled
@@ -190,7 +191,7 @@ class Pirate:
         return self.steal_bundles_for_timespan(
             request_params=request_params,
             resource_type=resource_type,
-            stop_after_first_page=stop_after_first_page,
+            num_pages=num_pages,
             read_from_cache=read_from_cache,
             silence_tqdm=silence_tqdm,
         )
@@ -201,7 +202,7 @@ class Pirate:
         request_params: Dict[str, Any] = None,
         time_attribute_name: str = "_lastUpdated",
         time_interval: Tuple[str, str] = None,
-        stop_after_first_page: bool = False,
+        num_pages: int = -1,
         read_from_cache: bool = False,
         silence_tqdm: bool = False,
     ) -> List[FHIRObj]:
@@ -216,14 +217,17 @@ class Pirate:
         timespan; e.g. started for ImagingStudy, date for DiagnosticReport. The default value is
         _lastUpdated, because it exists in all resources
         :param time_interval: The time interval for the query
-        :param stop_after_first_page: Whether only the first page should be returned or whether
-        we should return bundles as long as there are pages
+        :param num_pages: The number of pages of bundles that should be returned, the default is
+        -1 (all bundles), with any other value exactly that value of bundles will be returned,
+        assuming that there are that many
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
         :param silence_tqdm: Whether tqdm should be disabled
         :return: A list of bundles with the queried information
         """
-        bundles = []
+        bundles: List[FHIRObj] = []
+        if num_pages == 0:
+            return bundles
         current_params = {} if request_params is None else request_params.copy()
         if time_interval is not None:
             current_params[time_attribute_name] = (
@@ -252,19 +256,14 @@ class Pirate:
         if time_interval is None:
             self._check_sorting(bundle, current_params)
 
-        bundle_total = None
-        # If we only want one page
-        if stop_after_first_page:
-            # Append the single bundle
-            if bundle is not None:
-                bundles.append(bundle)
-            bundle = None
-            bundle_total = 1
-        else:
+        bundle_total: Union[int, float] = num_pages
+        if bundle_total == -1:
             total = self._get_total_from_bundle(bundle, count_entries=False)
             n_entries = self._get_total_from_bundle(bundle, count_entries=True)
             if total and n_entries:
                 bundle_total = math.ceil(total / n_entries)
+            else:
+                bundle_total = math.inf
         progress_bar = tqdm(disable=silence_tqdm, desc="Query", total=bundle_total)
         while bundle is not None:
             progress_bar.update()
@@ -283,7 +282,7 @@ class Pirate:
                 (link.url for link in bundle.link or [] if link.relation == "next"),
                 None,
             )
-            if next_link_url is None:
+            if next_link_url is None or progress_bar.n >= bundle_total:
                 break
             else:
                 # Re-assign bundle and start new iteration
@@ -483,7 +482,7 @@ class Pirate:
             resource_type,
             request_params,
             time_attribute_name,
-            stop_after_first_page=False,
+            num_pages=-1,
             read_from_cache=read_from_cache,
             silence_tqdm=True,
         )
@@ -527,7 +526,7 @@ class Pirate:
         resource_type: str,
         df_constraints: Dict[str, Union[str, Tuple[str, str]]],
         request_params: Dict[str, Any] = None,
-        stop_after_first_page: bool = False,
+        num_pages: int = -1,
         read_from_cache: bool = False,
     ) -> List[FHIRObj]:
         """
@@ -542,8 +541,9 @@ class Pirate:
         to add the system by using a tuple instead of a string, e.g. "code": (
         "http://loinc.org", "loinc_code")
         :param request_params: The parameters for the query, e.g. _count, _id
-        :param stop_after_first_page: Whether only the first page should be returned or whether
-        we should return bundles as long as there are pages
+        :param num_pages: The number of pages of bundles that should be returned, the default is
+        -1 (all bundles), with any other value exactly that value of bundles will be returned,
+        assuming that there are that many
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
         :return: A FHIR bundle containing the queried information
@@ -559,7 +559,7 @@ class Pirate:
         func = partial(
             self.steal_bundles,
             resource_type,
-            stop_after_first_page=stop_after_first_page,
+            num_pages=num_pages,
             read_from_cache=read_from_cache,
             silence_tqdm=True,
         )
@@ -634,7 +634,7 @@ class Pirate:
             #     ("code_abc", "code.coding.where(system = 'ABC').code"),
             #     ("code_def", "code.coding.where(system = 'DEF').code")
             # ],
-            stop_after_first_page=True,
+            num_pages=1,
         )
         ```
         """
@@ -702,7 +702,7 @@ class Pirate:
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         request_params: Dict[str, Any] = None,
-        stop_after_first_page: bool = False,
+        num_pages: int = -1,
         read_from_cache: bool = False,
     ) -> pd.DataFrame:
         """
@@ -728,8 +728,9 @@ class Pirate:
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths.
         :param request_params: The parameters for the query, e.g. _count, _id
-        :param stop_after_first_page: Whether only the first page should be returned or whether
-        we should return bundles as long as there are pages
+        :param num_pages: The number of pages of bundles that should be returned, the default is
+        -1 (all bundles), with any other value exactly that value of bundles will be returned,
+        assuming that there are that many
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
         :return: A pandas DataFrame containing the queried information merged with the original
@@ -769,7 +770,7 @@ class Pirate:
                 "bundles_function": self.steal_bundles,
                 "process_function": process_function,
                 "fhir_paths": fhir_paths,
-                "stop_after_first_page": stop_after_first_page,
+                "num_pages": num_pages,
                 "read_from_cache": read_from_cache,
                 "silence_tqdm": True,
                 "disable_multiprocessing_process_function": True,
