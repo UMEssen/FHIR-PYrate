@@ -72,7 +72,7 @@ class Pirate:
     ):
         # Remove the last character if they added it
         url_search = re.search(
-            pattern=r"(https?:\/\/[^\/]+)\/([\w\.\-~\/]+)", string=base_url
+            pattern=r"(https?:\/\/[^\/]+)([\w\.\-~\/]*)", string=base_url
         )
         if url_search is None:
             raise ValueError(
@@ -82,7 +82,7 @@ class Pirate:
         self.base_url = url_search.group(1)
         self.fhir_app_location = (
             url_search.group(2)
-            if url_search.group(2)[-1] == "/"
+            if len(url_search.group(2)) > 0 and url_search.group(2)[-1] == "/"
             else url_search.group(2) + "/"
         )
         self.auth = auth
@@ -251,7 +251,7 @@ class Pirate:
                     return bundles
 
         bundle = self._get_response(
-            f"{self.base_url}/{self.fhir_app_location}{resource_type}?{request_params_string}"
+            f"{self.base_url}{self.fhir_app_location}{resource_type}?{request_params_string}"
         )
         if time_interval is None:
             self._check_sorting(bundle, current_params)
@@ -400,7 +400,7 @@ class Pirate:
         request_params = {} if request_params is None else request_params
         request_params_string = self._concat_request_params(request_params)
         request_url = (
-            f"{self.base_url}/{self.fhir_app_location}{resource_type}"
+            f"{self.base_url}{self.fhir_app_location}{resource_type}"
             f"?{request_params_string}"
         )
         return self._get_total_from_bundle(
@@ -466,7 +466,7 @@ class Pirate:
         )
         request_params_string = self._concat_request_params(request_params_with_date)
         request_url = (
-            f"{self.base_url}/{self.fhir_app_location}{resource_type}"
+            f"{self.base_url}{self.fhir_app_location}{resource_type}"
             f"?{request_params_string}"
         )
         bundle = self._get_response(request_url)
