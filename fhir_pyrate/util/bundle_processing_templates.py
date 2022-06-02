@@ -64,11 +64,11 @@ def parse_fhir_path(
 ) -> List[Dict]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
-    for all possible attributes, which have been specified using a list of FHIRPath expressions (
-    https://hl7.org/fhirpath/).
+    for all possible attributes, which have been specified using a list of compiled FHIRPath
+    expressions (https://hl7.org/fhirpath/).
 
     :param bundle: The bundle returned by the FHIR request
-    :param compiled_fhir_paths: A list of tuples of the form (column_name, fhir_path),
+    :param compiled_fhir_paths: A list of tuples of the form (column_name, compiled_fhir_paths),
     where column_name is the name of the future column, and fhir_paths is a compiled function
     that will be used to build that column and that was compiled from a FHIR path (
     https://hl7.org/fhirpath/). Please refer to the `bundles_to_dataframe`
