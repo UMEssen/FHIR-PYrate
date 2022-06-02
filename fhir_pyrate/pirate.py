@@ -640,7 +640,7 @@ class Pirate:
         """
         if fhir_paths is not None:
             try:
-                import fhirpathpy  # noqa
+                from fhirpathpy import compile
             except ImportError as e:
                 raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
             logging.debug(
@@ -672,7 +672,12 @@ class Pirate:
                                 f"they are intended, you can silence the warning when "
                                 f"initializing the class."
                             )
-            process_function = partial(parse_fhir_path, fhir_paths=fhir_paths_with_name)
+            fhir_paths_with_name = [
+                (name, compile(path=path)) for name, path in fhir_paths_with_name
+            ]
+            process_function = partial(
+                parse_fhir_path, compiled_fhir_paths=fhir_paths_with_name
+            )
         if self.num_processes > 1 and not single_process:
             pool = multiprocessing.Pool(self.num_processes)
             results = [
