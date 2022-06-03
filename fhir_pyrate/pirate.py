@@ -582,7 +582,7 @@ class Pirate:
         bundles: List[FHIRObj],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        single_process: float = False,
+        sequential_df_build: bool = False,
     ) -> pd.DataFrame:
         """
         Convert a bundle into a DataFrame using either the `flatten_data` function (default),
@@ -596,7 +596,8 @@ class Pirate:
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path).
-        :param single_process: Whether the bundles should be processed sequentially
+        :param sequential_df_build: This variable is set to true by other functions in the Pirate
+        class whenever the creation of a DataFrame happens directly after the query
         :return: A pandas DataFrame containing the queried information
 
         **NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as
@@ -678,7 +679,7 @@ class Pirate:
             process_function = partial(
                 parse_fhir_path, compiled_fhir_paths=fhir_paths_with_name
             )
-        if self.num_processes > 1 and not single_process:
+        if self.num_processes > 1 and not sequential_df_build:
             pool = multiprocessing.Pool(self.num_processes)
             results = [
                 item
@@ -694,7 +695,12 @@ class Pirate:
         else:
             results = [
                 item
-                for bundle in tqdm(bundles, total=len(bundles), desc="Build DF")
+                for bundle in tqdm(
+                    bundles,
+                    disable=sequential_df_build,
+                    total=len(bundles),
+                    desc="Build DF",
+                )
                 for item in process_function(bundle)
             ]
         return pd.DataFrame(results)
@@ -778,7 +784,7 @@ class Pirate:
                 "num_pages": num_pages,
                 "read_from_cache": read_from_cache,
                 "silence_tqdm": True,
-                "disable_multiprocessing_process_function": True,
+                "sequential_df_build": True,
             }
             for req_sample in req_params_per_sample
         ]
@@ -822,7 +828,7 @@ class Pirate:
         bundles_function: Callable,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        disable_multiprocessing_process_function: float = False,
+        sequential_df_build: bool = False,
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
@@ -837,8 +843,8 @@ class Pirate:
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths.
-        :param disable_multiprocessing_process_function: Whether the bundles should be processed
-        sequentially to build the DataFrame
+        :param sequential_df_build: This variable is set to true by other functions in the Pirate
+        class whenever the creation of a DataFrame happens directly after the query
         :param kwargs: The arguments that will be passed to the `bundles_function` function,
         please refer to the documentation of the respective methods.
         :return: A pandas DataFrame containing the queried information
@@ -852,7 +858,7 @@ class Pirate:
             bundles=bundles_function(**kwargs),
             process_function=process_function,
             fhir_paths=fhir_paths,
-            single_process=disable_multiprocessing_process_function,
+            sequential_df_build=sequential_df_build,
         )
 
     @staticmethod
