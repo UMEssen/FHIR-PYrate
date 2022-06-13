@@ -282,7 +282,7 @@ class Pirate:
                 (link.url for link in bundle.link or [] if link.relation == "next"),
                 None,
             )
-            if next_link_url is None or progress_bar.n >= bundle_total:
+            if next_link_url is None or len(bundles) >= bundle_total:
                 break
             else:
                 # Re-assign bundle and start new iteration
