@@ -423,6 +423,8 @@ class DicomDownloader:
         # Create the mapping file
         output_dir = pathlib.Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
+        if mapping_df is not None and len(mapping_df) == 0:
+            mapping_df = None
         if mapping_df is None:
             mapping_df = pd.DataFrame(
                 columns=[
