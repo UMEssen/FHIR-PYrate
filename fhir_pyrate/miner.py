@@ -58,18 +58,6 @@ class Miner:
 
         self.num_processes = num_processes
 
-    @staticmethod
-    def _filter_report_header(sentences: List[Span], filter_text: str) -> List[Span]:
-        """
-        Filters a report according to some target text.
-
-        :param sentences: List of sentences within the report
-        :param filter_text: Target text which will be filtered
-        :return: Filtered sentences list
-        """
-        start_idx = [idx for idx, x in enumerate(sentences) if filter_text in x.text]
-        return sentences[start_idx[0] : -1] if len(start_idx) > 0 else sentences
-
     def _check_diagnostic_report(
         self,
         report_text: str,
@@ -90,7 +78,8 @@ class Miner:
         relevant_sentences = []
         if contains_target:
             sentences = [i for i in self.nlp(report_text).sents]
-            sentences = self._filter_report_header(sentences, filter_text=filter_text)
+            if filter_text is not None:
+                sentences = [x for x in sentences if filter_text in x.text]
 
             relevant_sentences = [
                 x
@@ -114,7 +103,7 @@ class Miner:
         df: pd.DataFrame,
         text_column_name: str,
         new_column_name: str = "text_found",
-        filter_text: str = "",
+        filter_text: str = None,
     ) -> pd.DataFrame:
         """
         Add a new column to our DataFrame with the output of the NLP search.
