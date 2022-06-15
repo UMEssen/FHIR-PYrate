@@ -15,6 +15,7 @@ The following code has been taken from MONAI
 https://github.com/Project-MONAI/MONAI/blob/ed233d9b48bd71eb623cf9777ad9b60142c8ad66/monai/utils/module.py
 and modified as follows:
 * The function `optional_import` does not take a version parameter.
+* The format of the `optional_import` docstring has been changed to reStructuredText.
 * The `_default_msg` parameter contains information that are related to this package.
 * Addition of type hints to `_LazyRaise`.
 
