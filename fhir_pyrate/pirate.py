@@ -6,7 +6,6 @@ import math
 import multiprocessing
 import re
 import traceback
-import warnings
 from functools import partial
 from pathlib import Path
 from types import TracebackType
@@ -19,6 +18,8 @@ from tqdm import tqdm
 
 from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
+
+logger = logging.getLogger(__name__)
 
 
 class Pirate:
@@ -104,7 +105,7 @@ class Pirate:
         self.bundle_cache_folder = None
         self.silence_fhirpath_warning = silence_fhirpath_warning
         if bundle_cache_folder is not None:
-            logging.warning(
+            logger.warning(
                 "Bundle caching is a beta feature. This has not yet been extensively "
                 "tested and does not have any cache invalidation mechanism."
             )
@@ -164,7 +165,7 @@ class Pirate:
             return json_response
         except Exception:
             # Leave this to be able to quickly see the errors
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return None
 
     def steal_bundles(
@@ -270,7 +271,7 @@ class Pirate:
             if time_interval is not None:
                 total = self._get_total_from_bundle(bundle, count_entries=True)
                 if total is None or total == 0:
-                    warnings.warn(
+                    logger.warning(
                         f"The bundle retrieved for the time between {time_interval[0]} and "
                         f"{time_interval[1]} is empty. Do you want to choose another time "
                         f"frame?"
@@ -355,7 +356,7 @@ class Pirate:
             and total > given_count
             and not any(k == "_sort" for k, _ in request_params.items())
         ):
-            warnings.warn(
+            logger.warning(
                 f"The bundle has multiple pages (_count = {given_count}, "
                 f"results = {total}) but no sorting method has been defined, "
                 "which may yield incorrect results. We will set the sorting parameter to id."
@@ -439,7 +440,7 @@ class Pirate:
         ]
         # If they are, remove them and issue a warning
         if len(search_division_params) > 0:
-            warnings.warn(
+            logger.warning(
                 f"Detected use of parameter {time_attribute_name} "
                 f"in the request parameters. Please use the date_init (inclusive) and "
                 f"date_end (exclusive) parameters instead."
@@ -471,7 +472,7 @@ class Pirate:
         )
         bundle = self._get_response(request_url)
         self._check_sorting(bundle, request_params)
-        logging.info(
+        logger.info(
             f"Running sail_through_search_space with {self.num_processes} processes."
         )
         # Divide the current time period into smaller spans
@@ -549,7 +550,7 @@ class Pirate:
         :return: A FHIR bundle containing the queried information
         """
         request_params = {} if request_params is None else request_params
-        logging.info(
+        logger.info(
             f"Querying each row of the DataFrame with {self.num_processes} processes."
         )
         request_params_per_sample = self._get_request_params_for_sample(
@@ -644,7 +645,7 @@ class Pirate:
                 from fhirpathpy import compile
             except ImportError as e:
                 raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
-            logging.debug(
+            logger.debug(
                 f"The selected process_function {process_function.__name__} will be "
                 f"overwritten."
             )
@@ -661,7 +662,7 @@ class Pirate:
                             )
                             is not None
                         ):
-                            logging.warning(
+                            logger.warning(
                                 f"You are using the term {token} in of your FHIR path {path}. "
                                 f"Please keep in mind that this token can be used a function according "
                                 f"to the FHIRPath specification (https://hl7.org/fhirpath/), which "
@@ -753,7 +754,7 @@ class Pirate:
             except ImportError as e:
                 raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
         request_params = {} if request_params is None else request_params
-        logging.info(
+        logger.info(
             f"Querying each row of the DataFrame with {self.num_processes} processes."
         )
         req_params_per_sample = self._get_request_params_for_sample(

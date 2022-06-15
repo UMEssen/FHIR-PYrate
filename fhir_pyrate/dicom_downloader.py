@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from fhir_pyrate.util import get_datetime
 
+logger = logging.getLogger(__name__)
 ##########
 # Follows a workaround to detect SimpleITK warnings
 # Thank you kind stranger from the internet
@@ -249,14 +250,14 @@ class DicomDownloader:
             download_id not in existing_ids if existing_ids is not None else False
         )
         file_format = ".nii.gz" if self._output_format == "nifti" else ".dcm"
-        logging.info(f"{get_datetime()} Current download ID: {download_id}")
+        logger.info(f"{get_datetime()} Current download ID: {download_id}")
 
         series_download_dir = pathlib.Path(output_dir) / self.get_download_path(
             download_id
         )
         # Check if it exists already and skips
         if len(list(series_download_dir.glob(f"*{file_format}"))) > 0 and not recompute:
-            logging.info(
+            logger.info(
                 f"Study {download_id} has been already downloaded in "
                 f"{series_download_dir}, skipping..."
             )
@@ -290,9 +291,9 @@ class DicomDownloader:
                 requests.exceptions.ChunkedEncodingError,
                 requests.exceptions.HTTPError,
             ):
-                logging.debug(traceback.format_exc())
+                logger.debug(traceback.format_exc())
                 progress_bar.close()
-                logging.info(f"Study {download_id} could not be fully downloaded.")
+                logger.info(f"Study {download_id} could not be fully downloaded.")
                 base_dict[self.error_type_field] = "Download Error"
                 base_dict[self.traceback_field] = traceback.format_exc()
                 return [], [base_dict]
@@ -300,7 +301,7 @@ class DicomDownloader:
 
             # Get Series ID names from folder
             series_uids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(current_tmp_dir))
-            logging.info(f"Study ID has {len(series_uids)} series.")
+            logger.info(f"Study ID has {len(series_uids)} series.")
             for series in series_uids:
                 # Get the DICOMs corresponding to the series
                 files = series_reader.GetGDCMSeriesFileNames(
@@ -336,8 +337,8 @@ class DicomDownloader:
                                 series_download_dir / f"{pathlib.Path(dcm_file).name}",
                             )
                 except Exception:
-                    logging.debug(traceback.format_exc())
-                    logging.info(f"Series {series} could not be stored.")
+                    logger.debug(traceback.format_exc())
+                    logger.info(f"Series {series} could not be stored.")
                     current_dict[self.error_type_field] = "Storing Error"
                     current_dict[self.traceback_field] = traceback.format_exc()
                     error_series_info.append(current_dict)
@@ -420,7 +421,7 @@ class DicomDownloader:
                 current_dict[self.deid_study_instance_uid_field] = destudy
                 current_dict[self.deid_series_instance_uid_field] = deseries
                 csv_rows.append(current_dict)
-        logging.info(f"{len(csv_rows)} have been fixed.")
+        logger.info(f"{len(csv_rows)} have been fixed.")
         new_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         return new_df
 
@@ -508,7 +509,7 @@ class DicomDownloader:
                         self.traceback_field: traceback.format_exc(),
                     }
                 ]
-                logging.error(traceback.format_exc())
+                logger.error(traceback.format_exc())
                 continue
             csv_rows += download_info
             error_rows += error_info
@@ -520,7 +521,7 @@ class DicomDownloader:
                     > datetime.timedelta(minutes=self.auth.token_refresh_minutes)
                 )
             ):
-                logging.info("Refreshing token...")
+                logger.info("Refreshing token...")
                 self.auth.refresh_token()
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)

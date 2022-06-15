@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from typing import Dict, List
@@ -6,6 +7,8 @@ from bs4 import BeautifulSoup
 
 from fhir_pyrate import Ahoy, Miner, Pirate
 from fhir_pyrate.util import FHIRObj
+
+logging.basicConfig(level=logging.INFO)
 
 SERVERS = [
     ("http://hapi.fhir.org/baseDstu2", "patient"),
