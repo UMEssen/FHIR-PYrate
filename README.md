@@ -75,6 +75,13 @@ or using GitHub (always the newest version).
 pip install git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
 
+These two commands only install the packages needed for `Pirate`. If you also want to use the `Miner` or the `DicomDownloader`, then you need to install them as extra dependencies with
+```bash
+pip install "fhir-pyrate[miner]" # only for miner
+pip install "fhir-pyrate[downloader]" # only for downloader
+pip install "fhir-pyrate[all]" # for both
+```
+
 If you want to use the FHIRPath capabilities you also need to
 install [fhirpath-py](https://github.com/beda-software/fhirpath-py) with
 ```bash
@@ -102,6 +109,17 @@ fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "mai
 and then run
 ```bash
 poetry lock
+```
+
+Also in poetry, the above only installs the packages for `Pirate`. If you also want to use the `Miner` or the `DicomDownloader`, then you need to install them as extra dependencies with
+```bash
+poetry add "fhir-pyrate[miner]" # only for miner
+poetry add "fhir-pyrate[downloader]" # only for downloader
+poetry add "fhir-pyrate[all]" # for both
+```
+or by adding the following to your `pyproject.toml` file:
+```bash
+fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "main", extras = ["all"]}
 ```
 
 And if you want to use FHIRPaths, add [fhirpath-py](https://github.com/beda-software/fhirpath-py).
