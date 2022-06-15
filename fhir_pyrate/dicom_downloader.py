@@ -20,6 +20,7 @@ import requests
 import SimpleITK as sitk
 from dicomweb_client.api import DICOMwebClient
 from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from fhir_pyrate.util import get_datetime
 
@@ -486,45 +487,46 @@ class DicomDownloader:
         for row in tqdm(
             df.itertuples(index=False), total=len(df), desc="Downloading Rows"
         ):
-            try:
-                download_info, error_info = self.download_data(
-                    study_uid=getattr(row, study_uid_col),
-                    series_uid=getattr(row, series_uid_col)
-                    if not download_full_study and series_uid_col is not None
-                    else None,
-                    output_dir=output_dir,
-                    save_metadata=save_metadata,
-                    existing_ids=existing_ids,
-                )
-            except KeyboardInterrupt:
-                break
-            except Exception:
-                # If any error happens that is not caught, just go to the next one
-                error_rows += [
-                    {
-                        self.study_instance_uid_field: getattr(row, study_uid_col),
-                        self.series_instance_uid_field: getattr(row, series_uid_col)
-                        if isinstance(series_uid_col, str)
-                        and getattr(row, series_uid_col) is not None
+            with logging_redirect_tqdm():
+                try:
+                    download_info, error_info = self.download_data(
+                        study_uid=getattr(row, study_uid_col),
+                        series_uid=getattr(row, series_uid_col)
+                        if not download_full_study and series_uid_col is not None
                         else None,
-                        self.error_type_field: "Other Error",
-                        self.traceback_field: traceback.format_exc(),
-                    }
-                ]
-                logger.error(traceback.format_exc())
-                continue
-            csv_rows += download_info
-            error_rows += error_info
-            if (
-                self.auth is not None
-                and self.auth.token is not None
-                and (
-                    (datetime.datetime.now() - self.auth.auth_time)
-                    > datetime.timedelta(minutes=self.auth.token_refresh_minutes)
-                )
-            ):
-                logger.info("Refreshing token...")
-                self.auth.refresh_token()
+                        output_dir=output_dir,
+                        save_metadata=save_metadata,
+                        existing_ids=existing_ids,
+                    )
+                except KeyboardInterrupt:
+                    break
+                except Exception:
+                    # If any error happens that is not caught, just go to the next one
+                    error_rows += [
+                        {
+                            self.study_instance_uid_field: getattr(row, study_uid_col),
+                            self.series_instance_uid_field: getattr(row, series_uid_col)
+                            if isinstance(series_uid_col, str)
+                            and getattr(row, series_uid_col) is not None
+                            else None,
+                            self.error_type_field: "Other Error",
+                            self.traceback_field: traceback.format_exc(),
+                        }
+                    ]
+                    logger.error(traceback.format_exc())
+                    continue
+                csv_rows += download_info
+                error_rows += error_info
+                if (
+                    self.auth is not None
+                    and self.auth.token is not None
+                    and (
+                        (datetime.datetime.now() - self.auth.auth_time)
+                        > datetime.timedelta(minutes=self.auth.token_refresh_minutes)
+                    )
+                ):
+                    logger.info("Refreshing token...")
+                    self.auth.refresh_token()
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
         return new_mapping_df, error_df

@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from fhir_pyrate import Ahoy, Miner, Pirate
 from fhir_pyrate.util import FHIRObj
 
-logging.basicConfig(level=logging.INFO)
+logging.getLogger().setLevel(logging.INFO)
 
 SERVERS = [
     ("http://hapi.fhir.org/baseDstu2", "patient"),
