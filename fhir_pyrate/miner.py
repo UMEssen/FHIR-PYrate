@@ -11,6 +11,8 @@ import spacy
 from spacy.tokens import Span
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+
 
 class Miner:
     """
@@ -41,7 +43,7 @@ class Miner:
         except IOError:
             # NOTE: Run python -m spacy download {nlp_lib} in your docker file
             # if you are using docker
-            logging.warning(
+            logger.warning(
                 "If you are trying to install the spacy library within docker, "
                 "this will probably not work, because it needs access to your home "
                 "directory. Please run python -m spacy download {nlp_lib} in your "
@@ -56,7 +58,7 @@ class Miner:
                 universal_newlines=True,
             )
             self.nlp = spacy.load(nlp_lib)
-            logging.debug(traceback.format_exc())
+            logger.debug(traceback.format_exc())
 
         self.num_processes = num_processes
 
