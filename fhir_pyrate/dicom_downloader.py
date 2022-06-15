@@ -275,7 +275,7 @@ class DicomDownloader:
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create the download dir
             current_tmp_dir = pathlib.Path(tmp_dir)
-            progress_bar = tqdm(leave=False, desc="Downloading")
+            progress_bar = tqdm(leave=False, desc="Downloading Instance")
             # Save the DICOMs to the tmpdir
             try:
                 it = (
@@ -482,7 +482,9 @@ class DicomDownloader:
         # Create list of rows
         csv_rows = []
         error_rows = []
-        for row in df.itertuples(index=False):
+        for row in tqdm(
+            df.itertuples(index=False), total=len(df), desc="Downloading Rows"
+        ):
             try:
                 download_info, error_info = self.download_data(
                     study_uid=getattr(row, study_uid_col),
