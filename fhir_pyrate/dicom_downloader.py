@@ -108,8 +108,16 @@ class DicomDownloader:
     :param dicom_web_url: The DicomWeb URL used to download the files
     :param output_format: The options are [nifti, DICOM]:
     DICOM will leave the files as they are;
-    nifti will convert them
-    :param retry:
+    nifti will convert them to .nii.gz
+    :param hierarchical_storage: How the hierarchy of the downloaded files should look like.
+    If 0, then all download folders will be in the same folder.
+    If greater than 0, the download ID will be split to create multiple subdirectories.
+    For example,
+    given a download ID 263a1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd
+    and `hierarchical_storage` = 2, the data will be stored in
+    26/3a/1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd.
+    :param retry: This flag will set the retry parameter of the DicomWebClient, which activates
+    HTTP retrying
     """
 
     def __init__(
@@ -117,6 +125,7 @@ class DicomDownloader:
         auth: Any,
         dicom_web_url: str,
         output_format: str = "nifti",
+        hierarchical_storage: int = 0,
         retry: bool = False,
     ):
         self.auth = auth
@@ -134,9 +143,11 @@ class DicomDownloader:
         self.series_instance_uid_field = "series_instance_uid"
         self.deid_study_instance_uid_field = "deidentified_study_instance_uid"
         self.deid_series_instance_uid_field = "deidentified_series_instance_uid"
+        self.relative_path_field = "download_path"
         self.download_id_field = "download_id"
         self.error_type_field = "error"
         self.traceback_field = "traceback"
+        self.hierarchical_storage = hierarchical_storage
 
     def set_output_format(self, new_output_format: str) -> None:
         """
@@ -191,6 +202,23 @@ class DicomDownloader:
             key_string += "_" + series_uid
         return hashlib.sha256(key_string.encode()).hexdigest()
 
+    def get_download_path(self, download_id: str) -> pathlib.Path:
+        """
+        Builds the folder hierarchy where the data will be stored. The hierarchy depends on the
+        `hierarchical_storage` parameter. Given a download ID
+        263a1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd and `hierarchical_storage` = 2,
+        the data will be stored in 26/3a/1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd.
+        :param download_id: The download ID of the current series/study.
+        :return: A path describing where the data will be stored.
+        """
+        current_path = pathlib.Path("")
+        i = 0
+        while i < self.hierarchical_storage:
+            current_path /= download_id[i * 2 : (i + 1) * 2]
+            i += 1
+        current_path /= download_id[i * 2 :]
+        return current_path
+
     def download_data(
         self,
         study_uid: str,
@@ -213,7 +241,6 @@ class DicomDownloader:
         identified IDs; Second, the studies that have failed to download together with some
         additional information such as the type of error and the traceback
         """
-        output_dir = pathlib.Path(output_dir)
         downloaded_series_info: List[Dict[str, str]] = []
         error_series_info: List[Dict[str, str]] = []
         # Generate a hash of key/series which will be the ID of this download
@@ -224,20 +251,22 @@ class DicomDownloader:
         )
         file_format = ".nii.gz" if self._output_format == "nifti" else ".dcm"
         logger.info(f"{get_datetime()} Current download ID: {download_id}")
+
+        series_download_dir = pathlib.Path(output_dir) / self.get_download_path(
+            download_id
+        )
         # Check if it exists already and skips
-        if (
-            len(list((output_dir / download_id).glob(f"*{file_format}"))) > 0
-            and not recompute
-        ):
+        if len(list(series_download_dir.glob(f"*{file_format}"))) > 0 and not recompute:
             logger.info(
                 f"Study {download_id} has been already downloaded in "
-                f"{output_dir}, skipping..."
+                f"{series_download_dir}, skipping..."
             )
             return downloaded_series_info, error_series_info
 
         base_dict = {
             self.study_instance_uid_field: study_uid,
             self.download_id_field: download_id,
+            self.relative_path_field: str(series_download_dir),
         }
         if series_uid is not None:
             base_dict[self.series_instance_uid_field] = series_uid
@@ -294,20 +323,18 @@ class DicomDownloader:
                     if "warning" in content.lower():
                         raise RuntimeError("SimpleITK " + content)
                     # Create the final output dir
-                    (output_dir / download_id).mkdir(exist_ok=True, parents=True)
+                    series_download_dir.mkdir(exist_ok=True, parents=True)
                     if self._output_format == "nifti":
                         # Write series to nifti
                         sitk.WriteImage(
-                            image, str(output_dir / download_id / (series + ".nii.gz"))
+                            image, str(series_download_dir / (series + ".nii.gz"))
                         )
                     else:
                         # We just copy the dicoms
                         for dcm_file in files:
                             shutil.copy2(
                                 dcm_file,
-                                output_dir
-                                / download_id
-                                / f"{pathlib.Path(dcm_file).name}",
+                                series_download_dir / f"{pathlib.Path(dcm_file).name}",
                             )
                 except Exception:
                     logger.debug(traceback.format_exc())
@@ -321,7 +348,7 @@ class DicomDownloader:
                 if save_metadata and self._output_format == "nifti":
                     shutil.copy2(
                         files[0],
-                        output_dir / download_id / f"{series}_meta.dcm",
+                        series_download_dir / f"{series}_meta.dcm",
                     )
                 dcm_info = pydicom.dcmread(str(files[0]), stop_before_pixels=True)
                 current_dict[
@@ -366,23 +393,25 @@ class DicomDownloader:
                 study_uid=getattr(row, study_uid_col),
                 series_uid=getattr(row, series_uid_col),
             )
+            series_download_dir = output_dir / self.get_download_path(download_id)
             # If the files have not been downloaded or
             # if the ID is already in the mapping dataframe
             if (
                 len(mapping_df) > 0
                 and skip_existing
                 and download_id in mapping_df[self.download_id_field].values
-            ) or len(list((output_dir / download_id).glob("*"))) == 0:
+            ) or len(list(series_download_dir.glob("*"))) == 0:
                 continue
             base_dict = {
                 self.study_instance_uid_field: getattr(row, study_uid_col),
                 self.download_id_field: download_id,
+                self.relative_path_field: str(series_download_dir),
             }
             if getattr(row, series_uid_col) is not None:
                 base_dict[self.series_instance_uid_field] = getattr(row, series_uid_col)
             # Collect the pairs of study instance ID and series instance ID that exist
             existing_pairs = set()
-            for dcm_file in (output_dir / download_id).glob("*.dcm"):
+            for dcm_file in series_download_dir.glob("*.dcm"):
                 dcm_info = pydicom.dcmread(str(dcm_file), stop_before_pixels=True)
                 existing_pairs.add(
                     (dcm_info.StudyInstanceUID, dcm_info.SeriesInstanceUID)
