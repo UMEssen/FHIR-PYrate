@@ -1579,13 +1579,14 @@ docs = ["sphinx", "jaraco.packaging (>=9)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy (>=0.9.1)"]
 
 [extras]
+all = ["SimpleITK", "pydicom", "dicomweb-client", "spacy"]
 downloader = ["SimpleITK", "pydicom", "dicomweb-client"]
 miner = ["spacy"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "0eea24757f14bcbeab9b1c6fa5a1aa9cdf16c66a11cdb8054103d69f23abc543"
+content-hash = "5e7948a1a4851570c2dbb86ac58139751fe0c1dd38b30aed4f0b1f3714bff935"
 
 [metadata.files]
 antlr4-python3-runtime = [
