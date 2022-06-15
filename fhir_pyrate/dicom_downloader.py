@@ -9,7 +9,6 @@ import shutil
 import sys
 import tempfile
 import traceback
-import warnings
 from contextlib import contextmanager
 from types import TracebackType
 from typing import Any, Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
@@ -475,7 +474,7 @@ class DicomDownloader:
             series_uid_col is None or series_uid_col not in df.columns
         ):
             download_full_study = True
-            warnings.warn(
+            logging.warning(
                 "download_full_study = False will only download a specified series but "
                 "have not provided a valid Series UID column of the DataFrame, "
                 "as a result the full study will be downloaded."
