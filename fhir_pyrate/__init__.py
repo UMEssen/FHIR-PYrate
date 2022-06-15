@@ -13,8 +13,8 @@ if importlib.util.find_spec("spacy") is None:
     logger.warning(
         "The package spacy is not installed, so you will not be able to use the "
         "Miner. "
-        "Please install them with pip install fhir-pyrate[miner] "
-        "(or fhir-pyrate[all]) or add the optional dependency `miner` "
+        "Please install them with pip install 'fhir-pyrate[miner]' "
+        "(or 'fhir-pyrate[all]') or add the optional dependency `miner` "
         "(or `all`) to your package manager."
     )
 else:
@@ -28,8 +28,8 @@ if any(not_installed):
     logger.warning(
         f"The packages {to_install} are not installed, so you will not be able to use the "
         "DicomDownloader. "
-        "Please install them with pip install fhir-pyrate[downloader] "
-        "(or fhir-pyrate[all]) or add the optional dependency `downloader` "
+        "Please install them with pip install 'fhir-pyrate[downloader]' "
+        "(or 'fhir-pyrate[all]') or add the optional dependency `downloader` "
         "(or `all`) to your package manager."
     )
 else:
