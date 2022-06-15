@@ -6,7 +6,6 @@ import math
 import multiprocessing
 import re
 import traceback
-import warnings
 from functools import partial
 from pathlib import Path
 from types import TracebackType
@@ -20,7 +19,7 @@ from tqdm import tqdm
 from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class Pirate:
@@ -272,7 +271,7 @@ class Pirate:
             if time_interval is not None:
                 total = self._get_total_from_bundle(bundle, count_entries=True)
                 if total is None or total == 0:
-                    warnings.warn(
+                    logger.warning(
                         f"The bundle retrieved for the time between {time_interval[0]} and "
                         f"{time_interval[1]} is empty. Do you want to choose another time "
                         f"frame?"
@@ -357,7 +356,7 @@ class Pirate:
             and total > given_count
             and not any(k == "_sort" for k, _ in request_params.items())
         ):
-            warnings.warn(
+            logger.warning(
                 f"The bundle has multiple pages (_count = {given_count}, "
                 f"results = {total}) but no sorting method has been defined, "
                 "which may yield incorrect results. We will set the sorting parameter to id."
@@ -441,7 +440,7 @@ class Pirate:
         ]
         # If they are, remove them and issue a warning
         if len(search_division_params) > 0:
-            warnings.warn(
+            logger.warning(
                 f"Detected use of parameter {time_attribute_name} "
                 f"in the request parameters. Please use the date_init (inclusive) and "
                 f"date_end (exclusive) parameters instead."

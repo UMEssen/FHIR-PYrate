@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 from fhir_pyrate.util import get_datetime
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 ##########
 # Follows a workaround to detect SimpleITK warnings
 # Thank you kind stranger from the internet

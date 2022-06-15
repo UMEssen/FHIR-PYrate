@@ -11,7 +11,7 @@ import spacy
 from spacy.tokens import Span
 from tqdm import tqdm
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class Miner:

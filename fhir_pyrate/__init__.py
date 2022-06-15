@@ -5,7 +5,7 @@ from fhir_pyrate.ahoy import Ahoy
 from fhir_pyrate.pirate import Pirate
 
 logging.basicConfig()
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 DICOM_PACKAGES = ["dicomweb_client", "pydicom", "SimpleITK"]
 

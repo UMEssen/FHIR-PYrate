@@ -8,7 +8,7 @@ from typing import Optional, Type
 import requests
 from requests.auth import HTTPBasicAuth
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class Ahoy:
