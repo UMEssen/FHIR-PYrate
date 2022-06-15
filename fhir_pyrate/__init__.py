@@ -5,11 +5,12 @@ from fhir_pyrate.ahoy import Ahoy
 from fhir_pyrate.pirate import Pirate
 
 logging.basicConfig()
+logger = logging.getLogger()
 
 DICOM_PACKAGES = ["dicomweb_client", "pydicom", "SimpleITK"]
 
 if importlib.util.find_spec("spacy") is None:
-    logging.warning(
+    logger.warning(
         "The package spacy is not installed, so you will not be able to use the "
         "Miner. "
         "Please install them with pip install fhir-pyrate[miner] "
@@ -24,7 +25,7 @@ not_installed = [
 ]
 if any(not_installed):
     to_install = [package for b, package in zip(not_installed, DICOM_PACKAGES) if b]
-    logging.warning(
+    logger.warning(
         f"The packages {to_install} are not installed, so you will not be able to use the "
         "DicomDownloader. "
         "Please install them with pip install fhir-pyrate[downloader] "

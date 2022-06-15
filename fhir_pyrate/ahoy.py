@@ -8,6 +8,8 @@ from typing import Optional, Type
 import requests
 from requests.auth import HTTPBasicAuth
 
+logger = logging.getLogger()
+
 
 class Ahoy:
     """
@@ -138,7 +140,7 @@ class Ahoy:
             self.session.headers.update({"Authorization": f"Bearer {self.token}"})
             self.auth_time = datetime.datetime.now()
         else:
-            logging.warning(
+            logger.warning(
                 "The token cannot be refreshed because neither a valid token nor a refresh url has "
                 "been provided."
             )
