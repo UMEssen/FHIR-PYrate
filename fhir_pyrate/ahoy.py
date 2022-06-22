@@ -155,7 +155,7 @@ class Ahoy:
             self.login_reattempted_times += 1
             self.token = None
             self.refresh_session()
-            response.request.headers.update(self.session.headers)
+            response.request.headers.update(dict(self.session.headers))
             # TODO: Untested with BasicAuth
             response.request.prepare_auth(self.session.auth)
             return self.session.send(response.request, **kwargs)
