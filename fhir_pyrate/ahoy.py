@@ -113,7 +113,7 @@ class Ahoy:
                 "The token authentication method cannot be used "
                 "without an authentication URL."
             )
-            response = requests.get(f"{self.auth_url}", auth=(username, password))
+            response = self.session.get(f"{self.auth_url}", auth=(username, password))
             response.raise_for_status()
             self.token = response.text
             self.session.headers.update({"Authorization": f"Bearer {self.token}"})
