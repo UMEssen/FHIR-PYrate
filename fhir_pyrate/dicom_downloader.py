@@ -1,4 +1,3 @@
-import datetime
 import hashlib
 import io
 import logging
@@ -516,16 +515,6 @@ class DicomDownloader:
                     continue
                 csv_rows += download_info
                 error_rows += error_info
-                if (
-                    self.auth is not None
-                    and self.auth.token is not None
-                    and (
-                        (datetime.datetime.now() - self.auth.auth_time)
-                        > datetime.timedelta(minutes=self.auth.token_refresh_minutes)
-                    )
-                ):
-                    logger.info("Refreshing token...")
-                    self.auth.refresh_token()
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
         return new_mapping_df, error_df

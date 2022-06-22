@@ -3,7 +3,7 @@ import getpass
 import logging
 import os
 from types import TracebackType
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -39,19 +39,21 @@ class Ahoy:
         username: str = None,
         auth_method: Optional[str] = "password",
         token: str = None,
-        token_refresh_time_minutes: int = 15,
+        max_login_attempts: int = 5,
     ) -> None:
         self.auth_type = auth_type
         self.auth_method = auth_method
         self.auth_url = auth_url
         self.refresh_url = refresh_url
         self.username = username
-        self.token_refresh_minutes = token_refresh_time_minutes
         self._user_env_name = "FHIR_USER"
         self._pass_env_name = "FHIR_PASSWORD"
         self.token = token
         self.session = requests.Session()
         self.auth_time = None
+        self.login_reattempted_times = 0
+        self.max_login_attempts = max_login_attempts
+        self.session.hooks["response"].append(self._refresh_hook)
         if self.auth_type is not None and self.auth_method is not None:
             self._authenticate()
             self.auth_time = datetime.datetime.now()
@@ -122,13 +124,14 @@ class Ahoy:
                 f"Used authentication type {self.auth_type} is not defined."
             )
 
-    def refresh_token(self, token: str = None) -> None:
+    def refresh_session(self, token: str = None) -> None:
         """
-        Refresh the token of the current session.
+        Refresh the current session either by logging in again or by refreshing the token.
 
         :param token: If a refresh URL has not been provided, a new token can be provided here as
         parameter
         """
+        logger.info("Refreshing session...")
         if token is not None:
             self.token = token
             self.session.headers.update({"Authorization": f"Bearer {self.token}"})
@@ -139,8 +142,23 @@ class Ahoy:
             self.token = response.text
             self.session.headers.update({"Authorization": f"Bearer {self.token}"})
             self.auth_time = datetime.datetime.now()
-        else:
-            logger.warning(
-                "The token cannot be refreshed because neither a valid token nor a refresh url has "
-                "been provided."
-            )
+        elif self.auth_type is not None and self.auth_method is not None:
+            self._authenticate()
+            self.auth_time = datetime.datetime.now()
+
+    def _refresh_hook(
+        self, response: requests.Response, *args: Any, **kwargs: Any
+    ) -> Optional[requests.Response]:
+        if self.login_reattempted_times >= self.max_login_attempts:
+            response.raise_for_status()
+        elif response.status_code == requests.codes.unauthorized:
+            self.login_reattempted_times += 1
+            self.token = None
+            self.refresh_session()
+            response.request.headers.update(self.session.headers)
+            # TODO: Untested with BasicAuth
+            response.request.prepare_auth(self.session.auth)
+            return self.session.send(response.request, **kwargs)
+        elif response.status_code == requests.codes.ok:
+            self.login_reattempted_times = 0
+        return None
