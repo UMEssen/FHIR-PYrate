@@ -38,6 +38,8 @@ class TokenAuth(requests.auth.AuthBase):
             self._session = requests.Session()
         else:
             self._session = session
+        # Session for handling the tokens
+        self._token_session = requests.Session()
         # Add hook to re-authenticate if the token is not valid
         self._session.hooks["response"].append(self._refresh_hook)
         self.auth_url = auth_url
@@ -53,7 +55,7 @@ class TokenAuth(requests.auth.AuthBase):
         Authenticates the user using the authentication URL and sets the token.
         """
         # Authentication to get the token
-        response = self._session.get(
+        response = self._token_session.get(
             f"{self.auth_url}", auth=(self._username, self._password)
         )
         self.token = response.text
@@ -109,12 +111,14 @@ class TokenAuth(requests.auth.AuthBase):
         if token is not None:
             self.token = token
         elif self.refresh_url is not None:
-            response = self._session.get(f"{self.refresh_url}")
+            response = self._token_session.get(f"{self.refresh_url}")
             if response.status_code != requests.codes.ok:
                 self._authenticate()
             else:
                 self.token = response.text
             self.auth_time = datetime.now()
+        else:
+            self._authenticate()
 
     def _refresh_hook(
         self, response: requests.Response, *args: Any, **kwargs: Any
@@ -151,7 +155,9 @@ class TokenAuth(requests.auth.AuthBase):
             else:
                 self.token = None
                 self.refresh_token()
-            return self._session.send(response.request, **kwargs)
+            # Authenticate and send again
+            auth_request = self(response.request)
+            return self._session.send(auth_request, **kwargs)
         elif response.status_code == requests.codes.ok:
             # Reset the attribute whenever we manage to log in
             response.request.login_reattempted_times = 0  # type: ignore
