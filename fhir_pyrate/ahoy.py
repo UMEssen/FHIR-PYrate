@@ -1,12 +1,13 @@
-import datetime
 import getpass
 import logging
 import os
 from types import TracebackType
-from typing import Any, Optional, Type
+from typing import Optional, Type
 
 import requests
 from requests.auth import HTTPBasicAuth
+
+from fhir_pyrate.util.token_auth import TokenAuth
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,9 @@ class Ahoy:
     keyring will use a keyring [NOT IMPLEMENTED YET]
     :param token: The token that can be used for authentication, if this variable is used then
     the other variables do not need to be specified
-    :param token_refresh_time_minutes: The number of minutes after which the token should be
-    refreshed
+    :param max_login_attempts: The maximum number of logins that can be performed
+    :param token_refresh_minutes: The number of minutes after which the token should be
+    refreshed, does not need to be specified for JWT tokens that contain the expiry date
     """
 
     def __init__(
@@ -40,6 +42,7 @@ class Ahoy:
         auth_method: Optional[str] = "password",
         token: str = None,
         max_login_attempts: int = 5,
+        token_refresh_minutes: int = None,
     ) -> None:
         self.auth_type = auth_type
         self.auth_method = auth_method
@@ -50,13 +53,10 @@ class Ahoy:
         self._pass_env_name = "FHIR_PASSWORD"
         self.token = token
         self.session = requests.Session()
-        self.auth_time = None
-        self.login_reattempted_times = 0
         self.max_login_attempts = max_login_attempts
-        self.session.hooks["response"].append(self._refresh_hook)
+        self.token_refresh_minutes = token_refresh_minutes
         if self.auth_type is not None and self.auth_method is not None:
             self._authenticate()
-            self.auth_time = datetime.datetime.now()
 
     def __enter__(self) -> "Ahoy":
         return self
@@ -91,13 +91,18 @@ class Ahoy:
         """
         Authenticate the user in the current session with a token or with BasicAuth.
         """
-        if self.auth_method == "password":
+        assert self.auth_method is not None
+        if self.auth_method.lower() == "password":
+            assert self.username is not None, (
+                "When using the password authentication method, "
+                "a username should be given as input."
+            )
             username = self.username
             password = getpass.getpass()
-        elif self.auth_method == "env":
+        elif self.auth_method.lower() == "env":
             username = os.environ[self._user_env_name]
             password = os.environ[self._pass_env_name]
-        elif self.auth_method == "keyring":
+        elif self.auth_method.lower() == "keyring":
             # TODO: implement keyring as an auth method
             # keyring.get_password("name_of_app", "password")
             raise NotImplementedError(
@@ -113,54 +118,18 @@ class Ahoy:
                 "The token authentication method cannot be used "
                 "without an authentication URL."
             )
-            response = self.session.get(f"{self.auth_url}", auth=(username, password))
-            response.raise_for_status()
-            self.token = response.text
-            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+            self.session.auth = TokenAuth(
+                username,
+                password,
+                auth_url=self.auth_url,
+                refresh_url=self.refresh_url,
+                session=self.session,
+                max_login_attempts=self.max_login_attempts,
+                token_refresh_minutes=self.token_refresh_minutes,
+            )
         elif self.auth_type.lower() == "basicauth":
             self.session.auth = HTTPBasicAuth(username, password)
         else:
             raise ValueError(
                 f"Used authentication type {self.auth_type} is not defined."
             )
-
-    def refresh_session(self, token: str = None) -> None:
-        """
-        Refresh the current session either by logging in again or by refreshing the token.
-
-        :param token: If a refresh URL has not been provided, a new token can be provided here as
-        parameter
-        """
-        logger.info("Refreshing session...")
-        if token is not None:
-            self.token = token
-            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
-            self.auth_time = datetime.datetime.now()
-        elif self.refresh_url is not None:
-            response = self.session.get(f"{self.refresh_url}")
-            response.raise_for_status()
-            self.token = response.text
-            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
-            self.auth_time = datetime.datetime.now()
-        elif self.auth_type is not None and self.auth_method is not None:
-            self._authenticate()
-            self.auth_time = datetime.datetime.now()
-
-    def _refresh_hook(
-        self, response: requests.Response, *args: Any, **kwargs: Any
-    ) -> Optional[requests.Response]:
-        if self.login_reattempted_times >= self.max_login_attempts:
-            response.raise_for_status()
-        elif response.status_code == requests.codes.unauthorized:
-            self.login_reattempted_times += 1
-            self.token = None
-            self.refresh_session()
-            response.request.headers["Authorization"] = str(
-                self.session.headers["Authorization"]
-            )
-            # TODO: Untested with BasicAuth
-            response.request.prepare_auth(self.session.auth)
-            return self.session.send(response.request, **kwargs)
-        elif response.status_code == requests.codes.ok:
-            self.login_reattempted_times = 0
-        return None
