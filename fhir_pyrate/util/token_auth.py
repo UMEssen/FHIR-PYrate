@@ -77,6 +77,9 @@ class TokenAuth(requests.auth.AuthBase):
 
         :return: Whether the token is about to expire and should thus be refreshed
         """
+        # If the token is currently None, then it should always be refreshed
+        if self.token is None:
+            return True
         try:
             decoded = jwt.decode(
                 jwt=self.token,
@@ -156,8 +159,7 @@ class TokenAuth(requests.auth.AuthBase):
                 self.token = None
                 self.refresh_token()
             # Authenticate and send again
-            auth_request = self(response.request)
-            return self._session.send(auth_request, **kwargs)
+            return self._session.send(self(response.request), **kwargs)
         elif response.status_code == requests.codes.ok:
             # Reset the attribute whenever we manage to log in
             response.request.login_reattempted_times = 0  # type: ignore
