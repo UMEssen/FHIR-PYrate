@@ -1,8 +1,9 @@
 import getpass
 import logging
 import os
+from datetime import timedelta
 from types import TracebackType
-from typing import Optional, Type
+from typing import Optional, Type, Union
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Ahoy:
     """
-    Simple authentication class.
+    Simple authentication class that supports token authentication and BasicAuth.
 
     :param auth_url: The URL to use for authentication
     :param auth_type: The kind of authentication, for now only "token" and "BasicAuth" are
@@ -29,8 +30,9 @@ class Ahoy:
     :param token: The token that can be used for authentication, if this variable is used then
     the other variables do not need to be specified
     :param max_login_attempts: The maximum number of logins that can be performed
-    :param token_refresh_minutes: The number of minutes after which the token should be
-    refreshed, does not need to be specified for JWT tokens that contain the expiry date
+    :param token_refresh_delta: Either a timedelta object that tells us how often the token
+    should be refreshed, or a number of minutes; this does not need to be specified for JWT tokens
+    that contain the expiry date
     """
 
     def __init__(
@@ -42,7 +44,7 @@ class Ahoy:
         auth_method: Optional[str] = "password",
         token: str = None,
         max_login_attempts: int = 5,
-        token_refresh_minutes: int = None,
+        token_refresh_delta: Union[int, timedelta] = None,
     ) -> None:
         self.auth_type = auth_type
         self.auth_method = auth_method
@@ -54,7 +56,7 @@ class Ahoy:
         self.token = token
         self.session = requests.Session()
         self.max_login_attempts = max_login_attempts
-        self.token_refresh_minutes = token_refresh_minutes
+        self.token_refresh_delta = token_refresh_delta
         if self.auth_type is not None and self.auth_method is not None:
             self._authenticate()
 
@@ -125,7 +127,7 @@ class Ahoy:
                 refresh_url=self.refresh_url,
                 session=self.session,
                 max_login_attempts=self.max_login_attempts,
-                token_refresh_minutes=self.token_refresh_minutes,
+                token_refresh_delta=self.token_refresh_delta,
             )
         elif self.auth_type.lower() == "basicauth":
             self.session.auth = HTTPBasicAuth(username, password)
