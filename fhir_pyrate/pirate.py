@@ -16,6 +16,7 @@ import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
+from fhir_pyrate import Ahoy
 from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
 
@@ -27,7 +28,8 @@ class Pirate:
     Main class to query resources using the FHIR API.
 
     :param base_url: The main URL where the FHIR server is located
-    :param auth: An authentication service that can be used obtain a session for querying resources
+    :param auth:  Either an authenticated instance of the Ahoy class, or an authenticated
+    requests.Session that can be used to communicate that can be used to query resources
     :param num_processes: The number of processes that should be used to run the query for the
     functions that use multiprocessing
     :param print_request_url: Whether the request URLs should be printed whenever we do a request
@@ -61,14 +63,13 @@ class Pirate:
     def __init__(
         self,
         base_url: str,
-        auth: Any,
+        auth: Optional[Union[requests.Session, Ahoy]],
         num_processes: int = 1,
         print_request_url: bool = False,
         time_format: str = "%Y-%m-%dT%H:%M",
         default_count: int = None,
         bundle_cache_folder: Union[str, Path] = None,
         silence_fhirpath_warning: bool = False,
-        session: requests.Session = None,
         optional_get_params: Dict[Any, Any] = None,
     ):
         # Remove the last character if they added it
@@ -86,15 +87,14 @@ class Pirate:
             if len(url_search.group(2)) > 0 and url_search.group(2)[-1] == "/"
             else url_search.group(2) + "/"
         )
-        self.auth = auth
         self._close_session_on_exit = False
-        if session is not None:
-            self.session = session
-        elif self.auth is not None:
-            self.session = self.auth.session
+        if isinstance(auth, Ahoy):
+            self.session = auth.session
+        elif isinstance(auth, requests.Session):
+            self.session = auth
         else:
-            self.session = requests.Session()
             self._close_session_on_exit = True
+            self.session = requests.session()
         self.optional_get_params = (
             optional_get_params if optional_get_params is not None else {}
         )

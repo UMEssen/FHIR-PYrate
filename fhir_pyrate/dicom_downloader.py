@@ -1,4 +1,3 @@
-import datetime
 import hashlib
 import io
 import logging
@@ -11,7 +10,7 @@ import tempfile
 import traceback
 from contextlib import contextmanager
 from types import TracebackType
-from typing import Any, Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
+from typing import Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
 
 import pandas as pd
 import pydicom
@@ -21,6 +20,7 @@ from dicomweb_client.api import DICOMwebClient
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
+from fhir_pyrate import Ahoy
 from fhir_pyrate.util import get_datetime
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,8 @@ def stdout_redirected(
 class DicomDownloader:
     """
     Downloads DICOM series and studies and stores their mapping to a patient in a CSV file.
-    :param auth: The authentication to the server to download the files
+    :param auth: Either an authenticated instance of the Ahoy class, or an authenticated
+    requests.Session that can be used to communicate with the PACS to download the files
     :param dicom_web_url: The DicomWeb URL used to download the files
     :param output_format: The options are [nifti, DICOM]:
     DICOM will leave the files as they are;
@@ -122,17 +123,20 @@ class DicomDownloader:
 
     def __init__(
         self,
-        auth: Any,
+        auth: Optional[Union[requests.Session, Ahoy]],
         dicom_web_url: str,
         output_format: str = "nifti",
         hierarchical_storage: int = 0,
         retry: bool = False,
     ):
-        self.auth = auth
         self.dicom_web_url = dicom_web_url
-        if self.auth is not None:
-            self.session = self.auth.session
+        self._close_session_on_exit = False
+        if isinstance(auth, Ahoy):
+            self.session = auth.session
+        elif isinstance(auth, requests.Session):
+            self.session = auth
         else:
+            self._close_session_on_exit = True
             self.session = requests.session()
         self.client = self._init_dicom_web_client()
         self.client.set_http_retry_params(retry=retry)
@@ -177,7 +181,7 @@ class DicomDownloader:
 
     def close(self) -> None:
         # Only close the session if it does not come from an authentication class
-        if self.auth is None:
+        if self._close_session_on_exit:
             self.session.close()
 
     def __exit__(
@@ -516,16 +520,6 @@ class DicomDownloader:
                     continue
                 csv_rows += download_info
                 error_rows += error_info
-                if (
-                    self.auth is not None
-                    and self.auth.token is not None
-                    and (
-                        (datetime.datetime.now() - self.auth.auth_time)
-                        > datetime.timedelta(minutes=self.auth.token_refresh_minutes)
-                    )
-                ):
-                    logger.info("Refreshing token...")
-                    self.auth.refresh_token()
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
         return new_mapping_df, error_df
