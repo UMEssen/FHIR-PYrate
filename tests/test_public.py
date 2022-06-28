@@ -3,6 +3,7 @@ import os
 import unittest
 from typing import Dict, List
 
+import pandas as pd
 from bs4 import BeautifulSoup
 
 from fhir_pyrate import Ahoy, Miner, Pirate
@@ -91,8 +92,7 @@ class GeneralTests(unittest.TestCase):
                         print_request_url=False,
                         num_processes=2,
                     )
-                    value_df = search.query_to_dataframe(
-                        bundles_function=search.steal_bundles,
+                    value_df = search.steal_bundles_to_dataframe(
                         resource_type="ValueSet",
                         num_pages=1,
                         request_params={"_sort": "_id"},
@@ -110,8 +110,7 @@ class GeneralTests(unittest.TestCase):
                     num_processes=2,
                 ) as search:
                     if server == "https://stu3.test.pyrohealth.net/fhir":
-                        condition_df = search.query_to_dataframe(
-                            bundles_function=search.steal_bundles,
+                        condition_df = search.steal_bundles_to_dataframe(
                             resource_type="Condition",
                             request_params={
                                 "_format": "json",
@@ -120,8 +119,7 @@ class GeneralTests(unittest.TestCase):
                             fhir_paths=["id", ("patient", f"{patient_ref}.reference")],
                         )
                     else:
-                        condition_df = search.query_to_dataframe(
-                            bundles_function=search.sail_through_search_space,
+                        condition_df = search.sail_through_search_space_to_dataframe(
                             resource_type="Condition",
                             request_params={
                                 "_count": 100,
@@ -180,16 +178,14 @@ class ExampleTests(unittest.TestCase):
         self.search.close()
 
     def testExample1(self) -> None:
-        observation_all = self.search.query_to_dataframe(
-            bundles_function=self.search.steal_bundles,
+        observation_all = self.search.steal_bundles_to_dataframe(
             resource_type="Observation",
             request_params={
                 "_id": "86092",
             },
         )
         assert len(observation_all) == 1
-        observation_values = self.search.query_to_dataframe(
-            bundles_function=self.search.steal_bundles,
+        observation_values = self.search.steal_bundles_to_dataframe(
             resource_type="Observation",
             request_params={
                 "_count": 1,
@@ -209,8 +205,7 @@ class ExampleTests(unittest.TestCase):
         ), observation_values.iloc[0, 2]
 
     def testExample3(self) -> None:
-        condition_df = self.search.query_to_dataframe(
-            bundles_function=self.search.steal_bundles,
+        condition_df = self.search.steal_bundles_to_dataframe(
             resource_type="Condition",
             request_params={
                 "_count": 100,
@@ -266,8 +261,7 @@ class ExampleTests(unittest.TestCase):
     def testExample4Exception(self) -> None:
         self.assertRaises(
             Exception,
-            self.search.query_to_dataframe,
-            bundles_function=self.search.steal_bundles,
+            self.search.steal_bundles_to_dataframe,
             resource_type="DiagnosticReport",
             request_params={
                 "_count": 100,
@@ -277,8 +271,7 @@ class ExampleTests(unittest.TestCase):
         )
 
     def testExample4(self) -> None:
-        diagnostic_df = self.search.query_to_dataframe(
-            bundles_function=self.search.steal_bundles,
+        diagnostic_df = self.search.steal_bundles_to_dataframe(
             resource_type="DiagnosticReport",
             request_params={
                 "_count": 100,
@@ -297,6 +290,101 @@ class ExampleTests(unittest.TestCase):
             new_column_name="text_found",
         )
         assert sum(df_filtered["text_found"]) == 33
+
+
+class TestPirate(unittest.TestCase):
+    def setUp(self) -> None:
+        self.search = Pirate(
+            auth=None,
+            base_url="http://hapi.fhir.org/baseDstu2",
+            print_request_url=False,
+            num_processes=3,
+        )
+        super().setUp()
+
+    def tearDown(self) -> None:
+        self.search.close()
+
+    def testStealBundles(self) -> None:
+        obs_bundles = self.search.steal_bundles(
+            resource_type="Observation", num_pages=5
+        )
+        obs_df = self.search.bundles_to_dataframe(obs_bundles)
+        assert len(obs_df) > 0
+        first_length = len(obs_df)
+        for build_after_query in [True, False]:
+            with self.subTest(msg="build_after_query_{}".format(build_after_query)):
+                obs_df = self.search.steal_bundles_to_dataframe(
+                    resource_type="Observation",
+                    num_pages=5,
+                    build_df_after_query=build_after_query,
+                )
+                assert len(obs_df) == first_length
+
+    def testSail(self) -> None:
+        for multi in [True, False]:
+            obs_bundles = self.search.sail_through_search_space(
+                resource_type="Observation",
+                time_attribute_name="_lastUpdated",
+                date_init="2021-01-01",
+                date_end="2022-01-01",
+                disable_multiprocessing=multi,
+            )
+            obs_df = self.search.bundles_to_dataframe(obs_bundles)
+        assert len(obs_df) > 0
+        first_length = len(obs_df)
+        for multi in [True, False]:
+            for build_after_query in [True, False]:
+                with self.subTest(
+                    msg="multi_{}_build_after_query_{}".format(multi, build_after_query)
+                ):
+                    obs_df = self.search.sail_through_search_space_to_dataframe(
+                        resource_type="Observation",
+                        time_attribute_name="_lastUpdated",
+                        date_init="2021-01-01",
+                        date_end="2022-01-01",
+                        build_df_after_query=build_after_query,
+                        disable_multiprocessing=multi,
+                    )
+                    assert len(obs_df) == first_length
+
+    def testTrade(self) -> None:
+        trade_df = pd.DataFrame(["18262-6", "2571-8"], columns=["code"])
+        for multi in [True, False]:
+            with self.subTest(msg="multi_{}".format(multi)):
+                obs_bundles = self.search.trade_rows_for_bundles(
+                    trade_df,
+                    resource_type="Observation",
+                    df_constraints={"code": "code"},
+                    request_params={"_lastUpdated": "ge2020"},
+                    disable_multiprocessing=multi,
+                )
+                obs_df = self.search.bundles_to_dataframe(obs_bundles)
+                first_length = len(obs_df)
+                assert len(obs_df) > 0
+
+                obs_df = self.search.trade_rows_for_dataframe_with_ref(
+                    trade_df,
+                    resource_type="Observation",
+                    df_constraints={"code": "code"},
+                    request_params={"_lastUpdated": "ge2020"},
+                    disable_multiprocessing=multi,
+                )
+                assert len(obs_df) == first_length
+        for multi in [True, False]:
+            for build_after_query in [True, False]:
+                with self.subTest(
+                    msg="multi_{}_build_after_query_{}".format(multi, build_after_query)
+                ):
+                    obs_df = self.search.trade_rows_for_dataframe(
+                        trade_df,
+                        resource_type="Observation",
+                        df_constraints={"code": "code"},
+                        request_params={"_lastUpdated": "ge2020"},
+                        build_df_after_query=build_after_query,
+                        disable_multiprocessing=multi,
+                    )
+                    assert len(obs_df) == first_length
 
 
 if __name__ == "__main__":
