@@ -1222,7 +1222,7 @@ class Pirate:
             request_params_per_sample = self._get_request_params_for_constraint(
                 df=df, request_params=request_params, df_constraints=df_constraints
             )
-            func = partial(
+            func = partial(  # type: ignore
                 # TODO: Why does it like the one above but not this one?
                 # If multiprocessing is disabled, I can use the generators,
                 # otherwise I have to use a list
