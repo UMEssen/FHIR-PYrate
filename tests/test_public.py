@@ -16,7 +16,7 @@ SERVERS = [
     ("http://hapi.fhir.org/baseDstu3", "subject"),
     ("http://hapi.fhir.org/baseR4", "subject"),
     ("http://hapi.fhir.org/baseR5", "subject"),
-    ("https://stu3.test.pyrohealth.net/fhir", "subject"),
+    # ("https://stu3.test.pyrohealth.net/fhir", "subject"),
 ]
 
 AUTH_SERVERS = [
