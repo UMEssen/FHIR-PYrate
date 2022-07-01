@@ -11,10 +11,10 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type, Union
 
+import fhirpathpy
 import pandas as pd
 import requests
 from dateutil.parser import parse
-from fhirpathpy import compile
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -1245,10 +1245,6 @@ class Pirate:
         :return: A function that converts a bundle into a list of information extracted with the
         FHIR paths.
         """
-        try:
-            from fhirpathpy import compile
-        except ImportError as e:
-            raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
         fhir_paths_with_name = [
             (path[0], path[1]) if isinstance(path, tuple) else (path, path)
             for path in fhir_paths
@@ -1273,7 +1269,7 @@ class Pirate:
                             f"initializing the class."
                         )
         fhir_paths_with_name = [
-            (name, compile(path=path)) for name, path in fhir_paths_with_name
+            (name, fhirpathpy.compile(path=path)) for name, path in fhir_paths_with_name
         ]
         return partial(parse_fhir_path, compiled_fhir_paths=fhir_paths_with_name)
 
@@ -1303,7 +1299,10 @@ class Pirate:
         :return: A pandas DataFrame containing the queried information
         """
         if fhir_paths is not None:
-            logger.info
+            logger.info(
+                f"The selected process_function {process_function.__name__} will be "
+                f"overwritten."
+            )
             process_function = self._set_up_fhirpath_function(fhir_paths)
         if disable_multiprocessing:
             results = [item for bundle in bundles for item in process_function(bundle)]
@@ -1337,7 +1336,7 @@ class Pirate:
         """
         Wrapper function that can be used to transform any function return Lists/Generators of
         bundles into DataFrames.
-        
+
         :param bundles_function: The function that returns a Generator/List of bundles and that
         can be used to build the DataFrame
         :return: A DataFrame containing the queried information
@@ -1352,11 +1351,6 @@ class Pirate:
             **kwargs: Any,
         ) -> pd.DataFrame:
             with logging_redirect_tqdm():
-                if fhir_paths is not None:
-                    try:
-                        import fhirpathpy  # noqa
-                    except ImportError as e:
-                        raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
                 return self._bundles_to_dataframe(
                     bundles=bundles_function(
                         *args, **kwargs, tqdm_df_build=not build_df_after_query
