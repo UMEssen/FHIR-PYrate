@@ -2,7 +2,7 @@
 name = "antlr4-python3-runtime"
 version = "4.8"
 description = "ANTLR 4.8 runtime for Python 3.7"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -288,21 +288,14 @@ devel = ["colorama", "jsonschema", "json-spec", "pylint", "pytest", "pytest-benc
 
 [[package]]
 name = "fhirpathpy"
-version = "0.0.1a0"
+version = "0.1.0"
 description = "FHIRPath implementation in Python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
-develop = false
 
 [package.dependencies]
 antlr4-python3-runtime = "4.8"
-
-[package.source]
-type = "git"
-url = "https://github.com/beda-software/fhirpath-py.git"
-reference = "master"
-resolved_reference = "9d80b0ceaea3e48a488c400934bbc33667a4e45a"
 
 [[package]]
 name = "filelock"
@@ -1600,7 +1593,7 @@ miner = ["spacy"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "3c8ca0cf495c9810da97250ecc4763d5576e71ab5ea70979ecce7623b3e5aa38"
+content-hash = "f15a6ae52f55c5bbfbb3155a325d3eae5f91c34e8ad80bcb6827add24545312d"
 
 [metadata.files]
 antlr4-python3-runtime = [
@@ -1838,7 +1831,9 @@ fastjsonschema = [
     {file = "fastjsonschema-2.15.3-py3-none-any.whl", hash = "sha256:ddb0b1d8243e6e3abb822bd14e447a89f4ab7439342912d590444831fa00b6a0"},
     {file = "fastjsonschema-2.15.3.tar.gz", hash = "sha256:0a572f0836962d844c1fc435e200b2e4f4677e4e6611a2e3bdd01ba697c275ec"},
 ]
-fhirpathpy = []
+fhirpathpy = [
+    {file = "fhirpathpy-0.1.0-py3-none-any.whl", hash = "sha256:c69a88c1a17fb67c13ad918657aeca4185e29322014342a8a3a2e86efa49e7db"},
+]
 filelock = [
     {file = "filelock-3.7.1-py3-none-any.whl", hash = "sha256:37def7b658813cda163b56fc564cdc75e86d338246458c4c28ae84cabefa2404"},
     {file = "filelock-3.7.1.tar.gz", hash = "sha256:3a0fd85166ad9dbab54c9aec96737b744106dc5f15c0b09a6744a445299fcf04"},

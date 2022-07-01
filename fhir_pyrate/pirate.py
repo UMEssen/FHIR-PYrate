@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type, 
 import pandas as pd
 import requests
 from dateutil.parser import parse
+from fhirpathpy import compile
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -51,13 +52,6 @@ class Pirate:
         "xor",
         "implies",
     ]
-    FHIRPATH_IMPORT_ERROR = (
-        "The fhirpath-py package cannot be pushed as a package dependency because it is not "
-        "present on PyPi, if you want to use the FHIRPath functionalities you need to install "
-        "this package using "
-        "`pip install git+https://github.com/beda-software/fhirpath-py.git` or by adding it to "
-        "poetry."
-    )
 
     def __init__(
         self,
@@ -1309,10 +1303,7 @@ class Pirate:
         :return: A pandas DataFrame containing the queried information
         """
         if fhir_paths is not None:
-            logger.info(
-                f"The selected process_function {process_function.__name__} will be "
-                f"overwritten."
-            )
+            logger.info
             process_function = self._set_up_fhirpath_function(fhir_paths)
         if disable_multiprocessing:
             results = [item for bundle in bundles for item in process_function(bundle)]
@@ -1346,7 +1337,7 @@ class Pirate:
         """
         Wrapper function that can be used to transform any function return Lists/Generators of
         bundles into DataFrames.
-
+        
         :param bundles_function: The function that returns a Generator/List of bundles and that
         can be used to build the DataFrame
         :return: A DataFrame containing the queried information
