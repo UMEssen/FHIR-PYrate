@@ -45,7 +45,6 @@ jobs:
           export PATH="/root/.local/bin:$PATH"
           poetry run pip install -U pip
           poetry install -E all
-          pip install git+https://github.com/beda-software/fhirpath-py.git
       - name: Run MyPy
         run: |
           poetry run mypy --install-types --non-interactive fhir_pyrate/

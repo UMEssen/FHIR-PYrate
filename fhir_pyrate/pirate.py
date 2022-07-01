@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 import pandas as pd
 import requests
 from dateutil.parser import parse
+from fhirpathpy import compile
 from tqdm import tqdm
 
 from fhir_pyrate import Ahoy
@@ -52,13 +53,6 @@ class Pirate:
         "xor",
         "implies",
     ]
-    FHIRPATH_IMPORT_ERROR = (
-        "The fhirpath-py package cannot be pushed as a package dependency because it is not "
-        "present on PyPi, if you want to use the FHIRPath functionalities you need to install "
-        "this package using "
-        "`pip install git+https://github.com/beda-software/fhirpath-py.git` or by adding it to "
-        "poetry."
-    )
 
     def __init__(
         self,
@@ -641,10 +635,6 @@ class Pirate:
         ```
         """
         if fhir_paths is not None:
-            try:
-                from fhirpathpy import compile
-            except ImportError as e:
-                raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
             logger.debug(
                 f"The selected process_function {process_function.__name__} will be "
                 f"overwritten."
@@ -748,11 +738,6 @@ class Pirate:
         :return: A pandas DataFrame containing the queried information merged with the original
         DataFrame
         """
-        if fhir_paths is not None:
-            try:
-                import fhirpathpy  # noqa
-            except ImportError as e:
-                raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
         request_params = {} if request_params is None else request_params
         logger.info(
             f"Querying each row of the DataFrame with {self.num_processes} processes."
@@ -850,11 +835,6 @@ class Pirate:
         please refer to the documentation of the respective methods.
         :return: A pandas DataFrame containing the queried information
         """
-        if fhir_paths is not None:
-            try:
-                import fhirpathpy  # noqa
-            except ImportError as e:
-                raise ImportError(self.FHIRPATH_IMPORT_ERROR) from e
         return self.bundles_to_dataframe(
             bundles=bundles_function(**kwargs),
             process_function=process_function,
