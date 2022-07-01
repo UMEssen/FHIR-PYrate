@@ -82,12 +82,6 @@ pip install "fhir-pyrate[downloader]" # only for downloader
 pip install "fhir-pyrate[all]" # for both
 ```
 
-If you want to use the FHIRPath capabilities you also need to
-install [fhirpath-py](https://github.com/beda-software/fhirpath-py) with
-```bash
-pip install git+https://github.com/beda-software/fhirpath-py.git
-```
-
 ### Or Within Poetry
 We can also use poetry for this same purpose. Using PyPi we need to run the following commands.
 ```bash
@@ -120,11 +114,6 @@ poetry add "fhir-pyrate[all]" # for both
 or by adding the following to your `pyproject.toml` file:
 ```bash
 fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "main", extras = ["all"]}
-```
-
-And if you want to use FHIRPaths, add [fhirpath-py](https://github.com/beda-software/fhirpath-py).
-```bash
-poetry add git+https://github.com/beda-software/fhirpath-py.git
 ```
 
 ## Run Tests
@@ -363,13 +352,6 @@ df = search.bundles_to_dataframe(
     bundles=bundles,
     fhir_paths=["id", ("code", "code.coding"), ("identifier", "identifier[0].code")],
 )
-```
-**NOTE on [fhirpath-py](https://github.com/beda-software/fhirpath-py)**: This package is
-currently not on PyPi and
-[PyPi does not allow packages that are not on PyPi](https://github.com/pypa/pip/issues/6301),
-so if you want to use this feature you need to install the package separately or use:
-```
-pip install git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
 **NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as modulus
 (`mod`) or integer division (`div`), and this may be problematic if there are fields of the
