@@ -104,9 +104,6 @@ class Pirate:
             )
             self.bundle_cache_folder = Path(bundle_cache_folder)
             self.bundle_cache_folder.mkdir(parents=True, exist_ok=True)
-            self._bundle_fn = self._cache_bundles
-        else:
-            self._bundle_fn = self._get_bundles
 
     ##############################
     #      MAIN FUNCTIONS        #
@@ -459,6 +456,12 @@ class Pirate:
         and some additional columns containing the original constraints
         """
         with logging_redirect_tqdm():
+            if fhir_paths is not None:
+                logger.info(
+                    f"The selected process_function {process_function.__name__} will be "
+                    f"overwritten."
+                )
+                process_function = self._set_up_fhirpath_function(fhir_paths)
             request_params = {} if request_params is None else request_params.copy()
             logger.info(
                 f"Querying each row of the DataFrame with {self.num_processes} processes."
@@ -466,6 +469,7 @@ class Pirate:
             req_params_per_sample = self._get_request_params_for_constraint(
                 df=df, request_params=request_params, df_constraints=df_constraints
             )
+            # Prepare the inputs that will end up in the final dataframe
             input_params_per_sample = [
                 {
                     # The name of the parameter will be the same as the column name
@@ -480,14 +484,23 @@ class Pirate:
                 }
                 for row in df.itertuples(index=False)
             ]
-            # Add all the parameters needed by the apply_async function
+            # The parameters used for post-processing (bundles to dataframe)
+            params_for_post = {
+                "process_function": process_function,
+                "build_df_after_query": False,
+                (
+                    "disable_post_multiprocessing"
+                    if disable_multiprocessing
+                    else "disable_multiprocessing"
+                ): True,  # The multiprocessing already happens on the rows
+            }
+            # Add all the parameters needed by the steal_bundles function
             params_per_sample = [
                 {
                     "resource_type": resource_type,
                     "request_params": req_sample,
-                    "process_function": process_function,
-                    "fhir_paths": fhir_paths,
                     "num_pages": num_pages,
+                    "silence_tqdm": True,
                     "read_from_cache": read_from_cache,
                 }
                 for req_sample in req_params_per_sample
@@ -495,32 +508,41 @@ class Pirate:
             found_dfs = []
             tqdm_text = "Query & Build DF"
             if disable_multiprocessing:
+                # If we don't want multiprocessing
                 for param, input_param in tqdm(
                     zip(params_per_sample, input_params_per_sample),
                     total=len(params_per_sample),
                     desc=tqdm_text,
                 ):
-                    found_df = self.steal_bundles_to_dataframe(**param)
+                    # Get the dataframe
+                    found_df = self._query_to_dataframe(self._bundle_fn)(
+                        **param, **params_for_post
+                    )
+                    # Add the key from the input
                     for key, value in input_param.items():
                         found_df[key] = value
                     found_dfs.append(found_df)
             else:
                 pool = multiprocessing.Pool(self.num_processes)
                 results = []
-                for param, input_param in zip(
-                    params_per_sample, input_params_per_sample
+                for param, input_param in tqdm(
+                    zip(params_per_sample, input_params_per_sample),
+                    total=len(params_per_sample),
+                    desc=tqdm_text,
                 ):
+                    # Add the functions that we want to run
                     results.append(
                         (
                             pool.apply_async(
-                                self.steal_bundles_to_dataframe, kwds=param
+                                self._bundles_to_dataframe,
+                                args=[self._bundle_fn_to_list(**param)],
+                                kwds=params_for_post,
                             ),
                             input_param,
                         )
                     )
-                for async_result, input_param in tqdm(
-                    results, total=len(results), desc=tqdm_text
-                ):
+                for async_result, input_param in results:
+                    # Get the results and build the dataframes
                     found_df = async_result.get()
                     for key, value in input_param.items():
                         found_df[key] = value
@@ -587,10 +609,15 @@ class Pirate:
         ```
         """
         with logging_redirect_tqdm():
+            if fhir_paths is not None:
+                logger.info(
+                    f"The selected process_function {process_function.__name__} will be "
+                    f"overwritten."
+                )
+                process_function = self._set_up_fhirpath_function(fhir_paths)
             return self._bundles_to_dataframe(
                 bundles=bundles,
                 process_function=process_function,
-                fhir_paths=fhir_paths,
                 build_df_after_query=True,
             )
 
@@ -830,13 +857,7 @@ class Pirate:
         )
         bundle_total: Union[int, float] = num_pages
         total = self._get_total_from_bundle(bundle, count_entries=False)
-        if total == 0:
-            # TODO: This still needs to be fixed
-            with logging_redirect_tqdm():
-                logger.warning(
-                    "The retrieved bundle has no results. "
-                    "Do you want to change the request parameters?"
-                )
+
         if bundle_total == -1:
             n_entries = self._get_total_from_bundle(bundle, count_entries=True)
             if total and n_entries:
@@ -862,7 +883,7 @@ class Pirate:
 
         progress_bar = tqdm(
             disable=silence_tqdm,
-            desc="Query & Build DF" if tqdm_df_build else "Query",
+            desc="QQuery & Build DF" if tqdm_df_build else "Query",
             total=bundle_total,
         )
         bundle_iter = 0
@@ -958,33 +979,23 @@ class Pirate:
             yield bundle
         return len(bundles)
 
-    def _bundle_fn_to_list(
-        self,
-        resource_type: str,
-        request_params: Dict[str, Any] = None,
-        num_pages: int = -1,
-        silence_tqdm: bool = False,
-        read_from_cache: bool = False,
-    ) -> List[FHIRObj]:
+    def _bundle_fn(self, *args: Any, **kwargs: Any) -> Generator[FHIRObj, None, int]:
+        """
+        Wrapper function runs either `_get_bundles` or `_cache_bundle`, depending on whether a
+        caching folder has been defined.
+        """
+        if self.bundle_cache_folder is not None:
+            fn = self._cache_bundles
+        else:
+            fn = self._get_bundles
+        return fn(*args, **kwargs)
+
+    def _bundle_fn_to_list(self, *args: Any, **kwargs: Any) -> List[FHIRObj]:
         """
         Wrapper function that converts the result of `_bundle_fn` (either `_get_bundles` or
         `_cache_bundle`, depending on whether a caching folder has been defined) to a list.
-
-        :param resource_type: The resource to be queried, e.g. DiagnosticReport
-        :param request_params: The parameters for the query, e.g. _count, _id
-        :param num_pages: The number of pages of bundles that should be returned, the default is
-        -1 (all bundles), with any other value exactly that value of bundles will be returned,
-        assuming that there are that many
-        :param silence_tqdm: Whether tqdm should be disabled
-        :param read_from_cache: Whether we should read the bundles from a cache folder,
-        in case they have already been computed
-        :return: A List of bundles containing the queried information
         """
-        return list(
-            self._bundle_fn(
-                resource_type, request_params, num_pages, silence_tqdm, read_from_cache
-            )
-        )
+        return list(self._bundle_fn(*args, **kwargs))
 
     def _get_bundles_for_timespan(
         self,
@@ -992,34 +1003,22 @@ class Pirate:
         request_params: Dict[str, Any],
         time_attribute_name: str,
         timespan: Tuple[str, str],
-        num_pages: int = -1,
-        silence_tqdm: bool = False,
-        read_from_cache: bool = False,
+        *args: Any,
+        **kwargs: Any,
     ) -> Generator[FHIRObj, None, int]:
         """
         Wrapper function that sets the `time_attribute_name` date parameters for the
         `sail_through_search_space function`.
-
-        :param resource_type: The resource to be queried, e.g. DiagnosticReport
-        :param request_params: The parameters for the query, e.g. _count, _id
-        :param time_attribute_name: The time attribute that should be used to define the
-        timespan; e.g. `started` for ImagingStudy, `date` for DiagnosticReport; `_lastUpdated`
-        should be able to be used by all queries
-        :param timespan: The time interval for the current query
-        :param num_pages: The number of pages of bundles that should be returned, the default is
-        -1 (all bundles), with any other value exactly that value of bundles will be returned,
-        assuming that there are that many
-        :param silence_tqdm: Whether tqdm should be disabled
-        :param read_from_cache: Whether we should read the bundles from a cache folder,
-        in case they have already been computed
-        :return: A Generator of FHIR bundles containing the queried information
         """
         request_params[time_attribute_name] = (
             f"ge{timespan[0]}",
             f"lt{timespan[1]}",
         )
         return self._bundle_fn(
-            resource_type, request_params, num_pages, silence_tqdm, read_from_cache
+            resource_type=resource_type,
+            request_params=request_params,
+            *args,
+            **kwargs,
         )
 
     def _bundles_for_timespan_to_list(
@@ -1028,26 +1027,11 @@ class Pirate:
         request_params: Dict[str, Any],
         time_attribute_name: str,
         timespan: Tuple[str, str],
-        num_pages: int = -1,
-        silence_tqdm: bool = False,
-        read_from_cache: bool = False,
+        *args: Any,
+        **kwargs: Any,
     ) -> List[FHIRObj]:
         """
         Wrapper function that converts the result of `_bundles_for_timespan_to_list` to a list.
-
-        :param resource_type: The resource to be queried, e.g. DiagnosticReport
-        :param request_params: The parameters for the query, e.g. _count, _id
-        :param time_attribute_name: The time attribute that should be used to define the
-        timespan; e.g. `started` for ImagingStudy, `date` for DiagnosticReport; `_lastUpdated`
-        should be able to be used by all queries
-        :param timespan: The time interval for the current query
-        :param num_pages: The number of pages of bundles that should be returned, the default is
-        -1 (all bundles), with any other value exactly that value of bundles will be returned,
-        assuming that there are that many
-        :param silence_tqdm: Whether tqdm should be disabled
-        :param read_from_cache: Whether we should read the bundles from a cache folder,
-        in case they have already been computed
-        :return: A List of bundles containing the queried information
         """
         return list(
             self._get_bundles_for_timespan(
@@ -1055,9 +1039,8 @@ class Pirate:
                 request_params,
                 time_attribute_name,
                 timespan,
-                num_pages,
-                silence_tqdm,
-                read_from_cache,
+                *args,
+                **kwargs,
             )
         )
 
@@ -1216,11 +1199,10 @@ class Pirate:
             request_params_per_sample = self._get_request_params_for_constraint(
                 df=df, request_params=request_params, df_constraints=df_constraints
             )
-            func = partial(  # type: ignore
-                # TODO: Why does it like the one above but not this one?
+            func = partial(
                 # If multiprocessing is disabled, I can use the generators,
                 # otherwise I have to use a list
-                self._bundle_fn if disable_multiprocessing else self._bundle_fn_to_list,  # type: ignore
+                self._bundle_fn if disable_multiprocessing else self._bundle_fn_to_list,
                 resource_type,
                 num_pages=num_pages,
                 read_from_cache=read_from_cache,
@@ -1277,7 +1259,6 @@ class Pirate:
         self,
         bundles: Union[List[FHIRObj], Generator[FHIRObj, None, int]],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         build_df_after_query: bool = False,
         disable_multiprocessing: bool = False,
     ) -> pd.DataFrame:
@@ -1290,20 +1271,11 @@ class Pirate:
         :param bundles: The bundles to transform
         :param process_function: The transformation function going through the entries and
         storing the entries to save
-        :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
-        future column with (column_name, fhir_path).
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
         :param disable_multiprocessing: Whether the bundles should be processed sequentially
         :return: A pandas DataFrame containing the queried information
         """
-        if fhir_paths is not None:
-            logger.info(
-                f"The selected process_function {process_function.__name__} will be "
-                f"overwritten."
-            )
-            process_function = self._set_up_fhirpath_function(fhir_paths)
         if disable_multiprocessing:
             results = [item for bundle in bundles for item in process_function(bundle)]
         else:
@@ -1351,12 +1323,17 @@ class Pirate:
             **kwargs: Any,
         ) -> pd.DataFrame:
             with logging_redirect_tqdm():
+                if fhir_paths is not None:
+                    logger.info(
+                        f"The selected process_function {process_function.__name__} will be "
+                        f"overwritten."
+                    )
+                    process_function = self._set_up_fhirpath_function(fhir_paths)
                 return self._bundles_to_dataframe(
                     bundles=bundles_function(
                         *args, **kwargs, tqdm_df_build=not build_df_after_query
                     ),
                     process_function=process_function,
-                    fhir_paths=fhir_paths,
                     build_df_after_query=build_df_after_query,
                     disable_multiprocessing=disable_post_multiprocessing,
                 )
