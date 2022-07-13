@@ -815,6 +815,7 @@ class Pirate:
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         sequential_df_build: bool = False,
+        merge_row: str = None,
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
@@ -831,16 +832,57 @@ class Pirate:
         functions for notes on how to use the FHIR paths.
         :param sequential_df_build: This variable is set to true by other functions in the Pirate
         class whenever the creation of a DataFrame happens directly after the query
+        :param merge_row: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, example below
         :param kwargs: The arguments that will be passed to the `bundles_function` function,
         please refer to the documentation of the respective methods.
         :return: A pandas DataFrame containing the queried information
+
+        The following example will initially return one row for each entry, but using
+        `group_row="patient_id"` we choose a column to run the merge on. This will merge the
+        columns that contain values that for the others are empty, having then one row representing
+        one patient.
+        ```
+        df = search.query_to_dataframe(
+            bundles_function=search.steal_bundles,
+            resource_type="Patient",
+            request_params={
+                "_sort": "_id",
+                "_count": 10,
+                "birthdate": "ge1990",
+                "_revinclude": "Condition:subject",
+            },
+            fhir_paths=[
+                ("patient_id", "Patient.id"),
+                ("patient_id", "Condition.subject.reference.replace('Patient/', '')"),
+                "Patient.gender",
+                "Condition.code.coding.code",
+            ],
+            num_pages=1,
+            group_row="patient_id"
+        )
+        ```
         """
-        return self.bundles_to_dataframe(
+        df = self.bundles_to_dataframe(
             bundles=bundles_function(**kwargs),
             process_function=process_function,
             fhir_paths=fhir_paths,
             sequential_df_build=sequential_df_build,
         )
+        if merge_row is not None:
+            new_df = df[merge_row]
+            for col in df.columns:
+                if col == merge_row:
+                    continue
+                new_df = pd.merge(
+                    left=new_df,
+                    right=df.loc[~df[col].isna(), [merge_row, col]],
+                    how="outer",
+                )
+            new_df = new_df.loc[new_df.astype(str).drop_duplicates().index]
+            return new_df.reset_index(drop=True)
+        return df
 
     @staticmethod
     def smash_rows(
