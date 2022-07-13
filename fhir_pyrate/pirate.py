@@ -706,6 +706,7 @@ class Pirate:
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
         read_from_cache: bool = False,
+        merge_on: str = None,
     ) -> pd.DataFrame:
         """
         Go through the rows of a DataFrame (with multiprocessing) and run a query and retrieve
@@ -735,6 +736,9 @@ class Pirate:
         assuming that there are that many
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, example below
         :return: A pandas DataFrame containing the queried information merged with the original
         DataFrame
         """
@@ -807,7 +811,8 @@ class Pirate:
                 for key, value in input_param.items():
                     found_df[key] = value
                 found_dfs.append(found_df)
-        return pd.concat(found_dfs, ignore_index=True)
+        df = pd.concat(found_dfs, ignore_index=True)
+        return df if merge_on is None else self.merge_on_row(df, merge_on)
 
     def query_to_dataframe(
         self,
@@ -815,7 +820,7 @@ class Pirate:
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         sequential_df_build: bool = False,
-        merge_row: str = None,
+        merge_on: str = None,
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
@@ -832,7 +837,7 @@ class Pirate:
         functions for notes on how to use the FHIR paths.
         :param sequential_df_build: This variable is set to true by other functions in the Pirate
         class whenever the creation of a DataFrame happens directly after the query
-        :param merge_row: Whether to merge the results on a certain row after computing. This is
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
         to merge all the rows into one, example below
         :param kwargs: The arguments that will be passed to the `bundles_function` function,
@@ -870,19 +875,30 @@ class Pirate:
             fhir_paths=fhir_paths,
             sequential_df_build=sequential_df_build,
         )
-        if merge_row is not None:
-            new_df = df[merge_row]
-            for col in df.columns:
-                if col == merge_row:
-                    continue
-                new_df = pd.merge(
-                    left=new_df,
-                    right=df.loc[~df[col].isna(), [merge_row, col]],
-                    how="outer",
-                )
-            new_df = new_df.loc[new_df.astype(str).drop_duplicates().index]
-            return new_df.reset_index(drop=True)
-        return df
+        return df if merge_on is None else self.merge_on_row(df, merge_on)
+
+    @staticmethod
+    def merge_on_row(df: pd.DataFrame, merge_on: str) -> pd.DataFrame:
+        """
+        Merges rows from different resources on a given attribute.
+
+        :param df: The DataFrame where the merge should be applied
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, example below
+        :return: A DataFrame where the rows having the same `merge_on` attribute are merged.
+        """
+        new_df = df[merge_on]
+        for col in df.columns:
+            if col == merge_on:
+                continue
+            new_df = pd.merge(
+                left=new_df,
+                right=df.loc[~df[col].isna(), [merge_on, col]],
+                how="outer",
+            )
+        new_df = new_df.loc[new_df.astype(str).drop_duplicates().index]
+        return new_df.reset_index(drop=True)
 
     @staticmethod
     def smash_rows(
