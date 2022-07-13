@@ -883,7 +883,7 @@ class Pirate:
 
         progress_bar = tqdm(
             disable=silence_tqdm,
-            desc="QQuery & Build DF" if tqdm_df_build else "Query",
+            desc="Query & Build DF" if tqdm_df_build else "Query",
             total=bundle_total,
         )
         bundle_iter = 0
