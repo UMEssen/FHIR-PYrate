@@ -1,6 +1,9 @@
+import logging
 from typing import Any, Callable, Dict, List, Tuple
 
 from fhir_pyrate.util import FHIRObj
+
+logger = logging.getLogger(__name__)
 
 
 def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> List[Dict]:
@@ -80,6 +83,11 @@ def parse_fhir_path(
         resource = entry.resource
         base_dict: Dict[str, Any] = {}
         for name, compiled_path in compiled_fhir_paths:
+            if name in base_dict and base_dict[name] is not None:
+                logger.warning(
+                    f"The field {name} has already been filled with {base_dict[name]}, "
+                    f"so it will not be overwritten."
+                )
             if name not in base_dict or base_dict[name] is None:
                 base_dict[name] = compiled_path(resource=resource.to_dict())
             if len(base_dict[name]) == 0:
