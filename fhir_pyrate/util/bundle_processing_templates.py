@@ -83,13 +83,14 @@ def parse_fhir_path(
         resource = entry.resource
         base_dict: Dict[str, Any] = {}
         for name, compiled_path in compiled_fhir_paths:
-            if name in base_dict and base_dict[name] is not None:
+            result = compiled_path(resource=resource.to_dict())
+            if name in base_dict and base_dict[name] is not None and len(result) > 0:
                 logger.warning(
                     f"The field {name} has already been filled with {base_dict[name]}, "
                     f"so it will not be overwritten."
                 )
             if name not in base_dict or base_dict[name] is None:
-                base_dict[name] = compiled_path(resource=resource.to_dict())
+                base_dict[name] = result
             if len(base_dict[name]) == 0:
                 base_dict[name] = None
             elif len(base_dict[name]) == 1:
