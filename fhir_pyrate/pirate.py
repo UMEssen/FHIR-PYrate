@@ -812,7 +812,9 @@ class Pirate:
                     found_df[key] = value
                 found_dfs.append(found_df)
         df = pd.concat(found_dfs, ignore_index=True)
-        return df if merge_on is None else self.merge_on_row(df, merge_on)
+        return (
+            df if merge_on is None or len(df) == 0 else self.merge_on_row(df, merge_on)
+        )
 
     def query_to_dataframe(
         self,
@@ -875,7 +877,9 @@ class Pirate:
             fhir_paths=fhir_paths,
             sequential_df_build=sequential_df_build,
         )
-        return df if merge_on is None else self.merge_on_row(df, merge_on)
+        return (
+            df if merge_on is None or len(df) == 0 else self.merge_on_row(df, merge_on)
+        )
 
     @staticmethod
     def merge_on_row(df: pd.DataFrame, merge_on: str) -> pd.DataFrame:
