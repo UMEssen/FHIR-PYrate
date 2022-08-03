@@ -91,9 +91,10 @@ def parse_fhir_path(
                 )
             if name not in base_dict or base_dict[name] is None:
                 base_dict[name] = result
-            if len(base_dict[name]) == 0:
-                base_dict[name] = None
-            elif len(base_dict[name]) == 1:
-                base_dict[name] = next(iter(base_dict[name]))
+            if isinstance(base_dict[name], List):
+                if len(base_dict[name]) == 0:
+                    base_dict[name] = None
+                elif len(base_dict[name]) == 1:
+                    base_dict[name] = next(iter(base_dict[name]))
         records.append(base_dict)
     return records
