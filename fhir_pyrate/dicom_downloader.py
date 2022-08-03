@@ -1,4 +1,3 @@
-import datetime
 import hashlib
 import io
 import logging
@@ -9,10 +8,9 @@ import shutil
 import sys
 import tempfile
 import traceback
-import warnings
 from contextlib import contextmanager
 from types import TracebackType
-from typing import Any, Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
+from typing import Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
 
 import pandas as pd
 import pydicom
@@ -20,9 +18,12 @@ import requests
 import SimpleITK as sitk
 from dicomweb_client.api import DICOMwebClient
 from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
+from fhir_pyrate import Ahoy
 from fhir_pyrate.util import get_datetime
 
+logger = logging.getLogger(__name__)
 ##########
 # Follows a workaround to detect SimpleITK warnings
 # Thank you kind stranger from the internet
@@ -103,26 +104,39 @@ def stdout_redirected(
 class DicomDownloader:
     """
     Downloads DICOM series and studies and stores their mapping to a patient in a CSV file.
-    :param auth: The authentication to the server to download the files
+    :param auth: Either an authenticated instance of the Ahoy class, or an authenticated
+    requests.Session that can be used to communicate with the PACS to download the files
     :param dicom_web_url: The DicomWeb URL used to download the files
     :param output_format: The options are [nifti, DICOM]:
     DICOM will leave the files as they are;
-    nifti will convert them
-    :param retry:
+    nifti will convert them to .nii.gz
+    :param hierarchical_storage: How the hierarchy of the downloaded files should look like.
+    If 0, then all download folders will be in the same folder.
+    If greater than 0, the download ID will be split to create multiple subdirectories.
+    For example,
+    given a download ID 263a1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd
+    and `hierarchical_storage` = 2, the data will be stored in
+    26/3a/1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd.
+    :param retry: This flag will set the retry parameter of the DicomWebClient, which activates
+    HTTP retrying
     """
 
     def __init__(
         self,
-        auth: Any,
+        auth: Optional[Union[requests.Session, Ahoy]],
         dicom_web_url: str,
         output_format: str = "nifti",
+        hierarchical_storage: int = 0,
         retry: bool = False,
     ):
-        self.auth = auth
         self.dicom_web_url = dicom_web_url
-        if self.auth is not None:
-            self.session = self.auth.session
+        self._close_session_on_exit = False
+        if isinstance(auth, Ahoy):
+            self.session = auth.session
+        elif isinstance(auth, requests.Session):
+            self.session = auth
         else:
+            self._close_session_on_exit = True
             self.session = requests.session()
         self.client = self._init_dicom_web_client()
         self.client.set_http_retry_params(retry=retry)
@@ -133,9 +147,11 @@ class DicomDownloader:
         self.series_instance_uid_field = "series_instance_uid"
         self.deid_study_instance_uid_field = "deidentified_study_instance_uid"
         self.deid_series_instance_uid_field = "deidentified_series_instance_uid"
+        self.relative_path_field = "download_path"
         self.download_id_field = "download_id"
         self.error_type_field = "error"
         self.traceback_field = "traceback"
+        self.hierarchical_storage = hierarchical_storage
 
     def set_output_format(self, new_output_format: str) -> None:
         """
@@ -165,7 +181,7 @@ class DicomDownloader:
 
     def close(self) -> None:
         # Only close the session if it does not come from an authentication class
-        if self.auth is None:
+        if self._close_session_on_exit:
             self.session.close()
 
     def __exit__(
@@ -190,6 +206,23 @@ class DicomDownloader:
             key_string += "_" + series_uid
         return hashlib.sha256(key_string.encode()).hexdigest()
 
+    def get_download_path(self, download_id: str) -> pathlib.Path:
+        """
+        Builds the folder hierarchy where the data will be stored. The hierarchy depends on the
+        `hierarchical_storage` parameter. Given a download ID
+        263a1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd and `hierarchical_storage` = 2,
+        the data will be stored in 26/3a/1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd.
+        :param download_id: The download ID of the current series/study.
+        :return: A path describing where the data will be stored.
+        """
+        current_path = pathlib.Path("")
+        i = 0
+        while i < self.hierarchical_storage:
+            current_path /= download_id[i * 2 : (i + 1) * 2]
+            i += 1
+        current_path /= download_id[i * 2 :]
+        return current_path
+
     def download_data(
         self,
         study_uid: str,
@@ -212,7 +245,6 @@ class DicomDownloader:
         identified IDs; Second, the studies that have failed to download together with some
         additional information such as the type of error and the traceback
         """
-        output_dir = pathlib.Path(output_dir)
         downloaded_series_info: List[Dict[str, str]] = []
         error_series_info: List[Dict[str, str]] = []
         # Generate a hash of key/series which will be the ID of this download
@@ -222,21 +254,23 @@ class DicomDownloader:
             download_id not in existing_ids if existing_ids is not None else False
         )
         file_format = ".nii.gz" if self._output_format == "nifti" else ".dcm"
-        logging.info(f"{get_datetime()} Current download ID: {download_id}")
+        logger.info(f"{get_datetime()} Current download ID: {download_id}")
+
+        series_download_dir = pathlib.Path(output_dir) / self.get_download_path(
+            download_id
+        )
         # Check if it exists already and skips
-        if (
-            len(list((output_dir / download_id).glob(f"*{file_format}"))) > 0
-            and not recompute
-        ):
-            logging.info(
+        if len(list(series_download_dir.glob(f"*{file_format}"))) > 0 and not recompute:
+            logger.info(
                 f"Study {download_id} has been already downloaded in "
-                f"{output_dir}, skipping..."
+                f"{series_download_dir}, skipping..."
             )
             return downloaded_series_info, error_series_info
 
         base_dict = {
             self.study_instance_uid_field: study_uid,
             self.download_id_field: download_id,
+            self.relative_path_field: str(series_download_dir),
         }
         if series_uid is not None:
             base_dict[self.series_instance_uid_field] = series_uid
@@ -246,7 +280,7 @@ class DicomDownloader:
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create the download dir
             current_tmp_dir = pathlib.Path(tmp_dir)
-            progress_bar = tqdm(leave=False, desc="Downloading")
+            progress_bar = tqdm(leave=False, desc="Downloading Instance")
             # Save the DICOMs to the tmpdir
             try:
                 it = (
@@ -261,9 +295,9 @@ class DicomDownloader:
                 requests.exceptions.ChunkedEncodingError,
                 requests.exceptions.HTTPError,
             ):
-                logging.debug(traceback.format_exc())
+                logger.debug(traceback.format_exc())
                 progress_bar.close()
-                logging.info(f"Study {download_id} could not be fully downloaded.")
+                logger.info(f"Study {download_id} could not be fully downloaded.")
                 base_dict[self.error_type_field] = "Download Error"
                 base_dict[self.traceback_field] = traceback.format_exc()
                 return [], [base_dict]
@@ -271,7 +305,7 @@ class DicomDownloader:
 
             # Get Series ID names from folder
             series_uids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(current_tmp_dir))
-            logging.info(f"Study ID has {len(series_uids)} series.")
+            logger.info(f"Study ID has {len(series_uids)} series.")
             for series in series_uids:
                 # Get the DICOMs corresponding to the series
                 files = series_reader.GetGDCMSeriesFileNames(
@@ -293,24 +327,22 @@ class DicomDownloader:
                     if "warning" in content.lower():
                         raise RuntimeError("SimpleITK " + content)
                     # Create the final output dir
-                    (output_dir / download_id).mkdir(exist_ok=True, parents=True)
+                    series_download_dir.mkdir(exist_ok=True, parents=True)
                     if self._output_format == "nifti":
                         # Write series to nifti
                         sitk.WriteImage(
-                            image, str(output_dir / download_id / (series + ".nii.gz"))
+                            image, str(series_download_dir / (series + ".nii.gz"))
                         )
                     else:
                         # We just copy the dicoms
                         for dcm_file in files:
                             shutil.copy2(
                                 dcm_file,
-                                output_dir
-                                / download_id
-                                / f"{pathlib.Path(dcm_file).name}",
+                                series_download_dir / f"{pathlib.Path(dcm_file).name}",
                             )
                 except Exception:
-                    logging.debug(traceback.format_exc())
-                    logging.info(f"Series {series} could not be stored.")
+                    logger.debug(traceback.format_exc())
+                    logger.info(f"Series {series} could not be stored.")
                     current_dict[self.error_type_field] = "Storing Error"
                     current_dict[self.traceback_field] = traceback.format_exc()
                     error_series_info.append(current_dict)
@@ -320,7 +352,7 @@ class DicomDownloader:
                 if save_metadata and self._output_format == "nifti":
                     shutil.copy2(
                         files[0],
-                        output_dir / download_id / f"{series}_meta.dcm",
+                        series_download_dir / f"{series}_meta.dcm",
                     )
                 dcm_info = pydicom.dcmread(str(files[0]), stop_before_pixels=True)
                 current_dict[
@@ -365,23 +397,25 @@ class DicomDownloader:
                 study_uid=getattr(row, study_uid_col),
                 series_uid=getattr(row, series_uid_col),
             )
+            series_download_dir = output_dir / self.get_download_path(download_id)
             # If the files have not been downloaded or
             # if the ID is already in the mapping dataframe
             if (
                 len(mapping_df) > 0
                 and skip_existing
                 and download_id in mapping_df[self.download_id_field].values
-            ) or len(list((output_dir / download_id).glob("*"))) == 0:
+            ) or len(list(series_download_dir.glob("*"))) == 0:
                 continue
             base_dict = {
                 self.study_instance_uid_field: getattr(row, study_uid_col),
                 self.download_id_field: download_id,
+                self.relative_path_field: str(series_download_dir),
             }
             if getattr(row, series_uid_col) is not None:
                 base_dict[self.series_instance_uid_field] = getattr(row, series_uid_col)
             # Collect the pairs of study instance ID and series instance ID that exist
             existing_pairs = set()
-            for dcm_file in (output_dir / download_id).glob("*.dcm"):
+            for dcm_file in series_download_dir.glob("*.dcm"):
                 dcm_info = pydicom.dcmread(str(dcm_file), stop_before_pixels=True)
                 existing_pairs.add(
                     (dcm_info.StudyInstanceUID, dcm_info.SeriesInstanceUID)
@@ -391,7 +425,7 @@ class DicomDownloader:
                 current_dict[self.deid_study_instance_uid_field] = destudy
                 current_dict[self.deid_series_instance_uid_field] = deseries
                 csv_rows.append(current_dict)
-        logging.info(f"{len(csv_rows)} have been fixed.")
+        logger.info(f"{len(csv_rows)} have been fixed.")
         new_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         return new_df
 
@@ -423,6 +457,8 @@ class DicomDownloader:
         # Create the mapping file
         output_dir = pathlib.Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
+        if mapping_df is not None and len(mapping_df) == 0:
+            mapping_df = None
         if mapping_df is None:
             mapping_df = pd.DataFrame(
                 columns=[
@@ -442,7 +478,7 @@ class DicomDownloader:
             series_uid_col is None or series_uid_col not in df.columns
         ):
             download_full_study = True
-            warnings.warn(
+            logging.warning(
                 "download_full_study = False will only download a specified series but "
                 "have not provided a valid Series UID column of the DataFrame, "
                 "as a result the full study will be downloaded."
@@ -451,46 +487,39 @@ class DicomDownloader:
         # Create list of rows
         csv_rows = []
         error_rows = []
-        for row in df.itertuples(index=False):
-            try:
-                download_info, error_info = self.download_data(
-                    study_uid=getattr(row, study_uid_col),
-                    series_uid=getattr(row, series_uid_col)
-                    if not download_full_study and series_uid_col is not None
-                    else None,
-                    output_dir=output_dir,
-                    save_metadata=save_metadata,
-                    existing_ids=existing_ids,
-                )
-            except KeyboardInterrupt:
-                break
-            except Exception:
-                # If any error happens that is not caught, just go to the next one
-                error_rows += [
-                    {
-                        self.study_instance_uid_field: getattr(row, study_uid_col),
-                        self.series_instance_uid_field: getattr(row, series_uid_col)
-                        if isinstance(series_uid_col, str)
-                        and getattr(row, series_uid_col) is not None
+        for row in tqdm(
+            df.itertuples(index=False), total=len(df), desc="Downloading Rows"
+        ):
+            with logging_redirect_tqdm():
+                try:
+                    download_info, error_info = self.download_data(
+                        study_uid=getattr(row, study_uid_col),
+                        series_uid=getattr(row, series_uid_col)
+                        if not download_full_study and series_uid_col is not None
                         else None,
-                        self.error_type_field: "Other Error",
-                        self.traceback_field: traceback.format_exc(),
-                    }
-                ]
-                logging.error(traceback.format_exc())
-                continue
-            csv_rows += download_info
-            error_rows += error_info
-            if (
-                self.auth is not None
-                and self.auth.token is not None
-                and (
-                    (datetime.datetime.now() - self.auth.auth_time)
-                    > datetime.timedelta(minutes=self.auth.token_refresh_minutes)
-                )
-            ):
-                logging.info("Refreshing token...")
-                self.auth.refresh_token()
+                        output_dir=output_dir,
+                        save_metadata=save_metadata,
+                        existing_ids=existing_ids,
+                    )
+                except KeyboardInterrupt:
+                    break
+                except Exception:
+                    # If any error happens that is not caught, just go to the next one
+                    error_rows += [
+                        {
+                            self.study_instance_uid_field: getattr(row, study_uid_col),
+                            self.series_instance_uid_field: getattr(row, series_uid_col)
+                            if isinstance(series_uid_col, str)
+                            and getattr(row, series_uid_col) is not None
+                            else None,
+                            self.error_type_field: "Other Error",
+                            self.traceback_field: traceback.format_exc(),
+                        }
+                    ]
+                    logger.error(traceback.format_exc())
+                    continue
+                csv_rows += download_info
+                error_rows += error_info
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
         return new_mapping_df, error_df

@@ -5,6 +5,8 @@ name: CI Tests
 # Controls when the workflow will run
 on:
   push:
+    branches:
+      - main
     paths:
       - "fhir_pyrate/**"
       - "tests/**"
@@ -42,8 +44,7 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
           export PATH="/root/.local/bin:$PATH"
           poetry run pip install -U pip
-          poetry install
-          pip install git+https://github.com/beda-software/fhirpath-py.git
+          poetry install -E all
       - name: Run MyPy
         run: |
           poetry run mypy --install-types --non-interactive fhir_pyrate/
