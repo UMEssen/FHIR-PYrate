@@ -14,8 +14,6 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-### Needed by 3.7
-openpyxl = "^3.0.7"
 ###
 SimpleITK = { version = "^2.0.2", optional = true }
 pydicom = { version = "^2.1.2", optional = true }
