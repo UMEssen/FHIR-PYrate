@@ -362,6 +362,7 @@ class Pirate:
         disable_multiprocessing: bool = False,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        merge_on: str = None,
         build_df_after_query: bool = False,
     ) -> pd.DataFrame:
         """
@@ -391,11 +392,14 @@ class Pirate:
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column,
+        an example can be found in `trade_rows_for_dataframe_with_ref`
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
         :return: A DataFrame containing FHIR bundles with the queried information for all rows
         """
-        return self._query_to_dataframe(self._trade_rows_for_bundles)(
+        df = self._query_to_dataframe(self._trade_rows_for_bundles)(
             df=df,
             resource_type=resource_type,
             df_constraints=df_constraints,
@@ -407,6 +411,9 @@ class Pirate:
             fhir_paths=fhir_paths,
             build_df_after_query=build_df_after_query,
         )
+        return (
+            df if merge_on is None or len(df) == 0 else self.merge_on_row(df, merge_on)
+        )
 
     def trade_rows_for_dataframe_with_ref(
         self,
@@ -417,6 +424,7 @@ class Pirate:
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
+        merge_on: str = None,
         read_from_cache: bool = False,
         disable_multiprocessing: bool = False,
     ) -> pd.DataFrame:
@@ -440,6 +448,9 @@ class Pirate:
         :param num_pages: The number of pages of bundles that should be returned, the default is
         -1 (all bundles), with any other value exactly that value of bundles will be returned,
         assuming that there are that many
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, example below
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
         :param disable_multiprocessing: If true, the bundles will be processed sequentially and
@@ -454,6 +465,31 @@ class Pirate:
         functions for notes on how to use the FHIR paths
         :return: A DataFrame containing FHIR bundles with the queried information for all rows
         and some additional columns containing the original constraints
+
+
+        The following example will initially return one row for each entry, but using
+        `group_row="patient_id"` we choose a column to run the merge on. This will merge the
+        columns that contain values that for the others are empty, having then one row representing
+        one patient.
+        ```
+        df = search.trade_rows_for_dataframe_with_ref(
+            resource_type="Patient",
+            request_params={
+                "_sort": "_id",
+                "_count": 10,
+                "birthdate": "ge1990",
+                "_revinclude": "Condition:subject",
+            },
+            fhir_paths=[
+                ("patient_id", "Patient.id"),
+                ("patient_id", "Condition.subject.reference.replace('Patient/', '')"),
+                "Patient.gender",
+                "Condition.code.coding.code",
+            ],
+            num_pages=1,
+            merge_on="patient_id"
+        )
+        ```
         """
         with logging_redirect_tqdm():
             if fhir_paths is not None:
@@ -549,7 +585,12 @@ class Pirate:
                     found_dfs.append(found_df)
                 pool.close()
                 pool.join()
-            return pd.concat(found_dfs, ignore_index=True)
+            df = pd.concat(found_dfs, ignore_index=True)
+            return (
+                df
+                if merge_on is None or len(df) == 0
+                else self.merge_on_row(df, merge_on)
+            )
 
     def bundles_to_dataframe(
         self,
@@ -582,8 +623,7 @@ class Pirate:
         pieces of information but for the same resource, the field will be only filled with the first
         occurence that is not None.
         ```python
-        df = search.query_to_dataframe(
-            bundles_function=search.steal_bundles,
+        df = search.steal_bundles_to_dataframe(
             resource_type="DiagnosticReport",
             request_params={
                 "_count": 1,
@@ -620,6 +660,28 @@ class Pirate:
                 process_function=process_function,
                 build_df_after_query=True,
             )
+
+    @staticmethod
+    def merge_on_row(df: pd.DataFrame, merge_on: str) -> pd.DataFrame:
+        """
+        Merges rows from different resources on a given attribute.
+        :param df: The DataFrame where the merge should be applied
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, example below
+        :return: A DataFrame where the rows having the same `merge_on` attribute are merged.
+        """
+        new_df = df[merge_on]
+        for col in df.columns:
+            if col == merge_on:
+                continue
+            new_df = pd.merge(
+                left=new_df,
+                right=df.loc[~df[col].isna(), [merge_on, col]],
+                how="outer",
+            )
+        new_df = new_df.loc[new_df.astype(str).drop_duplicates().index]
+        return new_df.reset_index(drop=True)
 
     @staticmethod
     def smash_rows(
