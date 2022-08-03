@@ -777,7 +777,10 @@ class Pirate:
             fhir_identifier: (
                 ("", second_term)
                 if isinstance(second_term, str)
-                else (second_term[0] + "%7C", second_term[1])
+                else (
+                    second_term[0] + ("%7C" if "http" in second_term[0] else ""),
+                    second_term[1],
+                )
             )
             for fhir_identifier, second_term in df_constraints.items()
         }
