@@ -812,18 +812,17 @@ class Pirate:
         }
         # Then handle the internal tuples
         return {
-            fhir_identifier: (
-                # TODO: Why does not not recognize that we are iterating through the list?
-                ("", column_constraint)  # type: ignore
+            fhir_identifier: [
+                ("", column_constraint)
                 if isinstance(column_constraint, str)
                 else (
                     column_constraint[0]
                     + ("%7C" if "http" in column_constraint[0] else ""),
                     column_constraint[1],
                 )
-            )
+                for column_constraint in list_of_constraints
+            ]
             for fhir_identifier, list_of_constraints in df_constraints_list.items()
-            for column_constraint in list_of_constraints
         }
 
     @staticmethod
@@ -831,7 +830,7 @@ class Pirate:
         df: pd.DataFrame,
         request_params: Dict[str, Any],
         df_constraints: Dict[str, List[Tuple[str, str]]],
-    ) -> List[Dict[str, str]]:
+    ) -> List[Dict[str, List[str]]]:
         """
         Builds the request parameters for each sample by checking the constraint set on each row.
         The resulting request parameters are given by the general `request_params` and by the
@@ -844,22 +843,23 @@ class Pirate:
         during a search query and that refer to a DataFrame
         :return: A list of dictionary constraint for each row of the DataFrame
         """
-        for _, (_, value) in df_constraints.items():
-            if df[value].isnull().any():
-                raise ValueError(
-                    f"The column {value} contains NaN values, "
-                    f"and thus it cannot be used to build queries."
-                )
+        for _, list_of_constraints in df_constraints.items():
+            for _, value in list_of_constraints:
+                if df[value].isnull().any():
+                    raise ValueError(
+                        f"The column {value} contains NaN values, "
+                        f"and thus it cannot be used to build queries."
+                    )
         return [
             dict(
                 {
-                    fhir_identifier: (
+                    fhir_identifier: [
                         (modifier + row[df.columns.get_loc(value)].split("/")[-1])
                         if fhir_identifier == "_id"
                         else modifier + row[df.columns.get_loc(value)]
-                    )
+                        for modifier, value in list_of_constraints
+                    ]
                     # Concatenate the given system identifier string with the desired identifier
-                    for modifier, value in df_constraints.items()
                     for fhir_identifier, list_of_constraints in df_constraints.items()
                 },
                 **request_params,
