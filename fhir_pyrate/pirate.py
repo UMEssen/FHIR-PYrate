@@ -127,7 +127,7 @@ class Pirate:
         request_params_string = self._concat_request_params(request_params or {})
         request_url = (
             f"{self.base_url}{self.fhir_app_location}{resource_type}"
-            f"?{request_params_string}"
+            f"{'/' if 'history' in (request_params or {}) else '?'}{request_params_string}"
         )
         return self._get_total_from_bundle(
             bundle=self._get_response(request_url), count_entries=count_entries
@@ -750,6 +750,8 @@ class Pirate:
         :param request_params: The parameters that should be used for the request
         :return: The concatenated string for the request
         """
+        if "history" in request_params:
+            return f"{request_params['history']}/_history"
         params = [
             f"{k}={v}"
             for k, v in request_params.items()
@@ -915,7 +917,8 @@ class Pirate:
         current_params = {} if request_params is None else request_params
         request_params_string = self._concat_request_params(current_params)
         bundle = self._get_response(
-            f"{self.base_url}{self.fhir_app_location}{resource_type}?{request_params_string}"
+            f"{self.base_url}{self.fhir_app_location}{resource_type}"
+            f"{'/' if 'history' in (request_params or {}) else '?'}{request_params_string}"
         )
         bundle_total: Union[int, float] = num_pages
         total = self._get_total_from_bundle(bundle, count_entries=False)
@@ -928,7 +931,8 @@ class Pirate:
                 bundle_total = math.inf
 
         if (
-            bundle_total != math.inf
+            "history" not in (request_params or {})
+            and bundle_total != math.inf
             and bundle_total > 1
             and not any(k == "_sort" for k, _ in current_params.items())
         ):
@@ -1003,8 +1007,10 @@ class Pirate:
                 self.bundle_cache_folder
                 / hashlib.sha256(
                     (
-                        f"{resource_type}?{self._concat_request_params(request_params or {})}"
-                        + ".json"
+                        f"{resource_type}"
+                        f"{'/' if 'history' in (request_params or {}) else '?'}"
+                        f"{self._concat_request_params(request_params or {})}"
+                        ".json"
                     ).encode()
                 ).hexdigest()
             )
