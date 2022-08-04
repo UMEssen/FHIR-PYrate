@@ -767,7 +767,12 @@ class Pirate:
         :return: The concatenated string for the request
         """
         if "history" in request_params:
-            return f"{request_params['history']}/_history"
+            history_param = (
+                request_params["history"]
+                if not isinstance(request_params["history"], List)
+                else next(iter(request_params["history"]))
+            )
+            return f"{history_param}/_history"
         params = [
             f"{k}={v}"
             for k, v in request_params.items()
