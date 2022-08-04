@@ -502,21 +502,20 @@ class Pirate:
             logger.info(
                 f"Querying each row of the DataFrame with {self.num_processes} processes."
             )
-            req_params_per_sample = self._get_request_params_for_constraint(
-                df=df, request_params=request_params, df_constraints=df_constraints
+            adjusted_constraints = self._adjust_df_constraints(df_constraints)
+            req_params_per_sample = self._get_request_params_for_sample(
+                df=df,
+                request_params=request_params,
+                df_constraints=adjusted_constraints,
             )
             # Prepare the inputs that will end up in the final dataframe
             input_params_per_sample = [
                 {
                     # The name of the parameter will be the same as the column name
                     # The value will be the same as the value in that column for that row
-                    (second_term if isinstance(second_term, str) else second_term[1]): (
-                        row[df.columns.get_loc(second_term)]
-                        if isinstance(second_term, str)
-                        else str(row[df.columns.get_loc(second_term[1])])
-                    )
+                    value: row[df.columns.get_loc(value)]
                     # Concatenate the given system identifier string with the desired identifier
-                    for _, second_term in df_constraints.items()
+                    for _, (_, value) in adjusted_constraints.items()
                 }
                 for row in df.itertuples(index=False)
             ]
@@ -766,33 +765,62 @@ class Pirate:
         return "&".join(params)
 
     @staticmethod
-    def _get_request_params_for_constraint(
+    def _adjust_df_constraints(
+        df_constraints: Dict[str, Union[str, Tuple[str, str]]]
+    ) -> Dict[str, Tuple[str, str]]:
+        """
+        Adjust the constraint dictionary to always have the same structure, which makes it easier
+        to parse it for other function.
+        :param df_constraints: A dictionary that specifies the constraints that should be applied
+        during a search query and that refer to a DataFrame
+        :return: A standardized request dictionary
+        """
+        return {
+            fhir_identifier: (
+                ("", second_term)
+                if isinstance(second_term, str)
+                else (
+                    second_term[0] + ("%7C" if "http" in second_term[0] else ""),
+                    second_term[1],
+                )
+            )
+            for fhir_identifier, second_term in df_constraints.items()
+        }
+
+    @staticmethod
+    def _get_request_params_for_sample(
         df: pd.DataFrame,
         request_params: Dict[str, Any],
-        df_constraints: Dict[str, Union[str, Tuple[str, str]]],
+        df_constraints: Dict[str, Tuple[str, str]],
     ) -> List[Dict[str, str]]:
         """
-        Builds the request parameters for each samply by checking the constraint set on each row.
+        Builds the request parameters for each sample by checking the constraint set on each row.
         The resulting request parameters are given by the general `request_params` and by the
         constraint given by each row. E.g. if df_constraints = {"subject": "patient_id"}, then
         the resulting list will contain {"subject": row.patient_id} for each row of the DataFrame.
 
-        :param df: The DataFrame that contains
-        :param request_params: The general request params for all rows
-        :param df_constraints: The constraints that should be applied to the rows
-        :return:
+        :param df: The DataFrame that contains the constraints that should be applied
+        :param request_params: The parameters for the query that do not depend on the DataFrame
+        :param df_constraints: A dictionary that specifies the constraints that should be applied
+        during a search query and that refer to a DataFrame
+        :return: A list of dictionary constraint for each row of the DataFrame
         """
+        for _, (_, value) in df_constraints.items():
+            if df[value].isnull().any():
+                raise ValueError(
+                    f"The column {value} contains NaN values, "
+                    f"and thus it cannot be used to build queries."
+                )
         return [
             dict(
                 {
                     fhir_identifier: (
-                        row[df.columns.get_loc(second_term)]
-                        if isinstance(second_term, str)
-                        else str(second_term[0])
-                        + str(row[df.columns.get_loc(second_term[1])])
+                        (system + row[df.columns.get_loc(value)].split("/")[-1])
+                        if fhir_identifier == "_id"
+                        else system + row[df.columns.get_loc(value)]
                     )
                     # Concatenate the given system identifier string with the desired identifier
-                    for fhir_identifier, second_term in df_constraints.items()
+                    for fhir_identifier, (system, value) in df_constraints.items()
                 },
                 **request_params,
             )
@@ -1264,8 +1292,10 @@ class Pirate:
             logger.info(
                 f"Querying each row of the DataFrame with {self.num_processes} processes."
             )
-            request_params_per_sample = self._get_request_params_for_constraint(
-                df=df, request_params=request_params, df_constraints=df_constraints
+            request_params_per_sample = self._get_request_params_for_sample(
+                df=df,
+                request_params=request_params,
+                df_constraints=self._adjust_df_constraints(df_constraints),
             )
             func = partial(
                 # If multiprocessing is disabled, I can use the generators,
