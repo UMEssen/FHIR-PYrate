@@ -859,9 +859,9 @@ class Pirate:
             dict(
                 {
                     fhir_identifier: [
-                        (modifier + row[df.columns.get_loc(value)].split("/")[-1])
+                        (modifier + str(row[df.columns.get_loc(value)]).split("/")[-1])
                         if fhir_identifier == "_id"
-                        else modifier + row[df.columns.get_loc(value)]
+                        else modifier + str(row[df.columns.get_loc(value)])
                         for modifier, value in list_of_constraints
                     ]
                     # Concatenate the given system identifier string with the desired identifier
