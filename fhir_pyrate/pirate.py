@@ -67,7 +67,7 @@ class Pirate:
     ):
         # Remove the last character if they added it
         url_search = re.search(
-            pattern=r"(https?:\/\/[^\/]+)([\w\.\-~\/]*)", string=base_url
+            pattern=r"(https?:\/\/([^\/]+))([\w\.\-~\/]*)", string=base_url
         )
         if url_search is None:
             raise ValueError(
@@ -75,10 +75,11 @@ class Pirate:
                 "written correctly? If it is, please create an issue."
             )
         self.base_url = url_search.group(1)
+        self.domain = url_search.group(2)
         self.fhir_app_location = (
-            url_search.group(2)
-            if len(url_search.group(2)) > 0 and url_search.group(2)[-1] == "/"
-            else url_search.group(2) + "/"
+            url_search.group(3)
+            if len(url_search.group(3)) > 0 and url_search.group(3)[-1] == "/"
+            else url_search.group(3) + "/"
         )
         self._close_session_on_exit = False
         if isinstance(auth, Ahoy):
@@ -997,7 +998,7 @@ class Pirate:
                 # Re-assign bundle and start new iteration
                 bundle = self._get_response(
                     f"{self.base_url}{next_link_url}"
-                    if self.base_url not in next_link_url
+                    if self.domain not in next_link_url
                     else next_link_url  # on HAPI the server
                 )
         progress_bar.close()
