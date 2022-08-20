@@ -67,7 +67,7 @@ class Pirate:
     ):
         # Remove the last character if they added it
         url_search = re.search(
-            pattern=r"(https?:\/\/[^\/]+)([\w\.\-~\/]*)", string=base_url
+            pattern=r"(https?:\/\/([^\/]+))([\w\.\-~\/]*)", string=base_url
         )
         if url_search is None:
             raise ValueError(

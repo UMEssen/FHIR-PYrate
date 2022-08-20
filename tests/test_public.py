@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import unittest
 from typing import Dict, List
 
@@ -23,6 +24,20 @@ AUTH_SERVERS = [
     ("http://hapi.fhir.org/baseDstu2", None, None),
     # Give username and password don't work
     # ("https://jade.phast.fr/resources-server/api/FHIR/", "basicauth", "env"),
+]
+
+TEST_URLS = [
+    "http://hapi.fhir.org/baseDstu2/a/b/c",
+    "http://hapi.fhir.org/baseDstu2/a/b/c/",
+    "http://hapi.fhir.org/baseDstu2",
+    "http://hapi.fhir.org/baseDstu2/",
+    "https://hapi.fhir.org/baseDstu2",
+    "https://hapi.fhir.org/",
+    "https://hapi.fhir.org",
+]
+NEXT_LINK_URLS = [
+    "/baseDstu2?_getpages=9f39b4db-cd37-4fdc-b43e-d790d18f0778&_getpagesoffset=10&_count=10&_pretty=true&_bundletype=searchset",
+    "https://hapi.fhir.org/baseDstu2?_getpages=9f39b4db-cd37-4fdc-b43e-d790d18f0778&_getpagesoffset=10&_count=10&_pretty=true&_bundletype=searchset",
 ]
 
 
@@ -70,6 +85,31 @@ def get_observation_info(bundle: FHIRObj) -> List[Dict]:
 
 
 class GeneralTests(unittest.TestCase):
+    def testURL(self) -> None:
+        for test_url in TEST_URLS:
+            for next_link_url in NEXT_LINK_URLS:
+                url_search = re.search(
+                    pattern=r"(https?:\/\/([^\/]+))([\w\.\-~\/]*)", string=test_url
+                )
+                assert url_search is not None
+                base_url = url_search.group(1)
+                domain = url_search.group(2)
+                fhir_app_location = (
+                    url_search.group(3)
+                    if len(url_search.group(3)) > 0 and url_search.group(3)[-1] == "/"
+                    else url_search.group(3) + "/"
+                )
+                assert domain in base_url
+                build_link = f"{base_url}{fhir_app_location}DiagnosticReport"
+                assert "/DiagnosticReport" in build_link, build_link
+                assert build_link.count("http") == 1, build_link
+                next_link = (
+                    f"{base_url}{next_link_url}"
+                    if domain not in next_link_url
+                    else next_link_url
+                )
+                assert next_link.count("http") == 1, next_link
+
     def testAuth(self) -> None:
         for server, type, method in AUTH_SERVERS:
             if "jade.phast.fr" in server:
