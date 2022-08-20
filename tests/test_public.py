@@ -473,7 +473,7 @@ class ContraintsTest(unittest.TestCase):
             ~self.condition_df["patient_id"].isna()
         ]
         patient_df = self.search.trade_rows_for_dataframe(
-            df=condition_df_pat,
+            df=condition_df_pat.head(10),
             resource_type="Patient",
             df_constraints={
                 "_id": "patient_id",
@@ -486,7 +486,7 @@ class ContraintsTest(unittest.TestCase):
         self.condition_df["date_end"] = "2022-01-01"
         condition_df_date = self.condition_df[~self.condition_df["date"].isna()]
         diagnostic_df = self.search.trade_rows_for_dataframe(
-            df=condition_df_date,
+            df=condition_df_date.head(10),
             resource_type="DiagnosticReport",
             df_constraints={"date": [("ge", "date"), ("le", "date_end")]},
             fhir_paths=["id", "code.coding.code.display"],
@@ -498,10 +498,11 @@ class ContraintsTest(unittest.TestCase):
         self.condition_df["code_column"] = "185345009"
         condition_df_date = self.condition_df[~self.condition_df["date"].isna()]
         encounter_df = self.search.trade_rows_for_dataframe(
-            df=condition_df_date,
+            df=condition_df_date.head(10),
             resource_type="Encounter",
             df_constraints={"type": "code_column"},
             fhir_paths=["id", "class", "reason.coding.display"],
+            num_pages=2,
         )
         assert len(encounter_df) > 0
 
@@ -509,10 +510,11 @@ class ContraintsTest(unittest.TestCase):
         self.condition_df["code_column"] = "185345009"
         condition_df_date = self.condition_df[~self.condition_df["date"].isna()]
         encounter_df = self.search.trade_rows_for_dataframe(
-            df=condition_df_date,
+            df=condition_df_date.head(10),
             resource_type="Encounter",
             df_constraints={"type": ("http://snomed.info/sct", "code_column")},
             fhir_paths=["id", "class", "reason.coding.display"],
+            num_pages=2,
         )
         assert len(encounter_df) > 0
 
