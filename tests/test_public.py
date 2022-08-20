@@ -25,6 +25,20 @@ AUTH_SERVERS = [
     # ("https://jade.phast.fr/resources-server/api/FHIR/", "basicauth", "env"),
 ]
 
+TEST_URLS = [
+    "http://hapi.fhir.org/baseDstu2/a/b/c",
+    "http://hapi.fhir.org/baseDstu2/a/b/c/",
+    "http://hapi.fhir.org/baseDstu2",
+    "http://hapi.fhir.org/baseDstu2/",
+    "https://hapi.fhir.org/baseDstu2",
+    "https://hapi.fhir.org/",
+    "https://hapi.fhir.org",
+]
+NEXT_LINK_URLS = [
+    "/baseDstu2?_getpages=9f39b4db-cd37-4fdc-b43e-d790d18f0778&_getpagesoffset=10&_count=10&_pretty=true&_bundletype=searchset",
+    "https://hapi.fhir.org/baseDstu2?_getpages=9f39b4db-cd37-4fdc-b43e-d790d18f0778&_getpagesoffset=10&_count=10&_pretty=true&_bundletype=searchset",
+]
+
 
 # Processing function to process each single text
 def decode_text(text: str) -> str:
@@ -385,6 +399,96 @@ class TestPirate(unittest.TestCase):
                         disable_multiprocessing=multi,
                     )
                     assert len(obs_df) == first_length
+
+
+class ContraintsTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.search = Pirate(
+            auth=None,
+            base_url="http://hapi.fhir.org/baseDstu2",
+            print_request_url=False,
+            num_processes=1,
+        )
+        super().setUp()
+        self.condition_df = self.search.steal_bundles_to_dataframe(
+            resource_type="Condition",
+            request_params={
+                "_count": 100,
+                "_sort": "_id",
+            },
+            fhir_paths=[
+                "id",
+                ("patient_id", "patient.reference"),
+                "verificationStatus",
+                ("date", "onsetDateTime.substring(0,10)"),
+            ],
+            num_pages=1,
+        )
+
+    def tearDown(self) -> None:
+        self.search.close()
+
+    def testRefDiagnosticSubject(self) -> None:
+        condition_df_pat = self.condition_df.loc[
+            ~self.condition_df["patient_id"].isna()
+        ]
+        diagnostic_df = self.search.trade_rows_for_dataframe(
+            df=condition_df_pat,
+            resource_type="DiagnosticReport",
+            df_constraints={
+                "subject": "patient_id",
+            },
+            process_function=get_diagnostic_text,
+        )
+        assert len(diagnostic_df) > 0
+
+    def testRefPatientSubject(self) -> None:
+        condition_df_pat = self.condition_df.loc[
+            ~self.condition_df["patient_id"].isna()
+        ]
+        patient_df = self.search.trade_rows_for_dataframe(
+            df=condition_df_pat,
+            resource_type="Patient",
+            df_constraints={
+                "_id": "patient_id",
+            },
+            fhir_paths=["id", "gender", "birthDate"],
+        )
+        assert len(patient_df) > 0
+
+    def testRefDiagnosticDate(self) -> None:
+        self.condition_df["date_end"] = "2022-01-01"
+        condition_df_date = self.condition_df[~self.condition_df["date"].isna()]
+        diagnostic_df = self.search.trade_rows_for_dataframe(
+            df=condition_df_date,
+            resource_type="DiagnosticReport",
+            df_constraints={"date": [("ge", "date"), ("le", "date_end")]},
+            fhir_paths=["id", "code.coding.code.display"],
+            num_pages=2,
+        )
+        assert len(diagnostic_df) > 0
+
+    def testRefEncounter(self) -> None:
+        self.condition_df["code_column"] = "185345009"
+        condition_df_date = self.condition_df[~self.condition_df["date"].isna()]
+        encounter_df = self.search.trade_rows_for_dataframe(
+            df=condition_df_date,
+            resource_type="Encounter",
+            df_constraints={"type": "code_column"},
+            fhir_paths=["id", "class", "reason.coding.display"],
+        )
+        assert len(encounter_df) > 0
+
+    def testRefEncounterSystem(self) -> None:
+        self.condition_df["code_column"] = "185345009"
+        condition_df_date = self.condition_df[~self.condition_df["date"].isna()]
+        encounter_df = self.search.trade_rows_for_dataframe(
+            df=condition_df_date,
+            resource_type="Encounter",
+            df_constraints={"type": ("http://snomed.info/sct", "code_column")},
+            fhir_paths=["id", "class", "reason.coding.display"],
+        )
+        assert len(encounter_df) > 0
 
 
 if __name__ == "__main__":
