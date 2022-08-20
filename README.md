@@ -514,10 +514,15 @@ request. You can also simply open an issue with the tag "enhancement".
 5. Open a Pull Request
 
 ## Authors and acknowledgment
+
+This package was developed at the [Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/). 
+
 - [gakusai](https://github.com/gakusai): initial idea, development, logo & figures
 - [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
 
-We would like to thank [razorx89](https://github.com/razorx89) for his infinite knowledge.
+We would like to thank [razorx89](https://github.com/razorx89), [butterpear](https://github.com/butterpear), [vkyprmr](https://github.com/vkyprmr), [Wizzzard93](https://github.com/Wizzzard93) and [luckfamousa](https://github.com/luckfamousa) for their input, time and effort.
+
+# We would like to thank [razorx89](https://github.com/razorx89) for his infinite knowledge.
 
 ## License
 This project is licenced under the [MIT Licence](LICENSE).
