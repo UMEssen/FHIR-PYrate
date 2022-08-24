@@ -522,8 +522,6 @@ This package was developed at the [Institute for Artificial Intelligence in Medi
 
 We would like to thank [razorx89](https://github.com/razorx89), [butterpear](https://github.com/butterpear), [vkyprmr](https://github.com/vkyprmr), [Wizzzard93](https://github.com/Wizzzard93) and [luckfamousa](https://github.com/luckfamousa) for their input, time and effort.
 
-# We would like to thank [razorx89](https://github.com/razorx89) for his infinite knowledge.
-
 ## License
 This project is licenced under the [MIT Licence](LICENSE).
 
