@@ -1,6 +1,8 @@
-cff-version: 1.1.0
-message: "If you use this software, please cite it as below."
-authors:
+cff-version: 1.2.0
+preferred-citation:
+  type: software
+  message: "If you use FHIR-PYrate, please cite it as below."
+  authors:
   - family-names: René
     given-names: Hosch
   - family-names: Baldini
@@ -22,7 +24,7 @@ authors:
   - family-names: Nensa
     given-names: Felix
     orcid: https://orcid.org/0000-0002-5811-7100
-title: FHIR-PYrate: Extracting FHIR data in an easy and standardized way for clinical users
-version: v0.1.0
-date-released: 2022-08-03
-doi: 10.5281/zenodo.7025226
+  title: FHIR-PYrate: Extracting FHIR data in an easy and standardized way for clinical users
+  version: v0.1.0
+  date-released: 2022-08-03
+  doi: 10.5281/zenodo.7025226
