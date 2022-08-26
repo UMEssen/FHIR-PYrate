@@ -10,7 +10,7 @@
 </div>
 
 This package is meant to provide a simple abstraction to query and structure FHIR resources as
-pandas DataFrames.
+pandas DataFrames. Want to use R instead? Try out [fhircrackr](https://github.com/POLAR-fhiR/fhircrackr)!
 
 There are four main classes:
 * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/ahoy.py): Authenticate on the FHIR API
