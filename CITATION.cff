@@ -1,0 +1,27 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: René
+    given-names: Hosch
+  - family-names: Baldini
+    given-names: Giulia
+    orcid: https://orcid.org/0000-0002-5929-0271
+  - family-names: Parmar
+    given-names: Vicky
+    orcid: https://orcid.org/0000-0002-0383-0435
+  - family-names: Borys
+    given-names: Katarzyna
+    orcid: https://orcid.org/0000-0001-6987-6041
+  - family-names: Koitka
+    given-names: Sven
+    orcid: https://orcid.org/0000-0001-9704-1180
+  - family-names: Engelke
+    given-names: Merlin
+  - family-names: Ulrich
+    given-names: Moritz
+  - family-names: Nensa
+    given-names: Felix
+    orcid: https://orcid.org/0000-0002-5811-7100
+title: UMEssen/FHIR-PYrate: v0.1.0
+version: v0.1.0
+date-released: 2022-08-03
