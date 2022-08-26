@@ -312,7 +312,9 @@ class Pirate:
         self,
         df: pd.DataFrame,
         resource_type: str,
-        df_constraints: Dict[str, Union[str, Tuple[str, str]]],
+        df_constraints: Dict[
+            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
+        ],
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
         read_from_cache: bool = False,
@@ -329,6 +331,11 @@ class Pirate:
         is the FHIR attribute and fhir_patient_id is the name of the column. It is also possible
         to add the system by using a tuple instead of a string, e.g. "code": (
         "http://loinc.org", "loinc_code")
+        Possible structures:
+        {"code": "code_column"}
+        {"code": ("code_system", "code_column")}
+        {"date": ["init_date_column", "end_date_column"]}
+        {"date": [("ge", "init_date_column"), ("le", "end_date_column")]}
         :param request_params: The parameters for the query, e.g. _count, _id
         :param num_pages: The number of pages of bundles that should be returned, the default is
         -1 (all bundles), with any other value exactly that value of bundles will be returned,
@@ -356,7 +363,9 @@ class Pirate:
         self,
         df: pd.DataFrame,
         resource_type: str,
-        df_constraints: Dict[str, Union[str, Tuple[str, str]]],
+        df_constraints: Dict[
+            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
+        ],
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
         read_from_cache: bool = False,
@@ -377,6 +386,11 @@ class Pirate:
         is the FHIR attribute and fhir_patient_id is the name of the column. It is also possible
         to add the system by using a tuple instead of a string, e.g. "code": (
         "http://loinc.org", "loinc_code")
+        Possible structures:
+        {"code": "code_column"}
+        {"code": ("code_system", "code_column")}
+        {"date": ["init_date_column", "end_date_column"]}
+        {"date": [("ge", "init_date_column"), ("le", "end_date_column")]}
         :param request_params: The parameters for the query, e.g. _count, _id
         :param num_pages: The number of pages of bundles that should be returned, the default is
         -1 (all bundles), with any other value exactly that value of bundles will be returned,
@@ -420,7 +434,9 @@ class Pirate:
         self,
         df: pd.DataFrame,
         resource_type: str,
-        df_constraints: Dict[str, Union[str, Tuple[str, str]]],
+        df_constraints: Dict[
+            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
+        ],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         request_params: Dict[str, Any] = None,
@@ -516,7 +532,8 @@ class Pirate:
                     # The value will be the same as the value in that column for that row
                     value: row[df.columns.get_loc(value)]
                     # Concatenate the given system identifier string with the desired identifier
-                    for _, (_, value) in adjusted_constraints.items()
+                    for _, list_of_constraints in adjusted_constraints.items()
+                    for _, value in list_of_constraints
                 }
                 for row in df.itertuples(index=False)
             ]
@@ -751,7 +768,12 @@ class Pirate:
         :return: The concatenated string for the request
         """
         if "history" in request_params:
-            return f"{request_params['history']}/_history"
+            history_param = (
+                request_params["history"]
+                if not isinstance(request_params["history"], List)
+                else next(iter(request_params["history"]))
+            )
+            return f"{history_param}/_history"
         params = [
             f"{k}={v}"
             for k, v in request_params.items()
@@ -767,33 +789,54 @@ class Pirate:
 
     @staticmethod
     def _adjust_df_constraints(
-        df_constraints: Dict[str, Union[str, Tuple[str, str]]]
-    ) -> Dict[str, Tuple[str, str]]:
+        df_constraints: Dict[
+            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
+        ]
+    ) -> Dict[str, List[Tuple[str, str]]]:
         """
         Adjust the constraint dictionary to always have the same structure, which makes it easier
         to parse it for other function.
+
+        Possible structures:
+        {"code": "code_column"}
+        {"code": ("code_system", "code_column")}
+        {"date": ["init_date_column", "end_date_column"]}
+        {"date": [("ge", "init_date_column"), ("le", "end_date_column")]}
+
         :param df_constraints: A dictionary that specifies the constraints that should be applied
         during a search query and that refer to a DataFrame
         :return: A standardized request dictionary
         """
-        return {
+        # First make sure that everything is transformed into a dictionary of lists
+        df_constraints_list: Dict[str, List[Union[str, Tuple[str, str]]]] = {
             fhir_identifier: (
-                ("", second_term)
-                if isinstance(second_term, str)
-                else (
-                    second_term[0] + ("%7C" if "http" in second_term[0] else ""),
-                    second_term[1],
-                )
+                [possible_list]
+                if not isinstance(possible_list, List)
+                else possible_list
             )
-            for fhir_identifier, second_term in df_constraints.items()
+            for fhir_identifier, possible_list in df_constraints.items()
+        }
+        # Then handle the internal tuples
+        return {
+            fhir_identifier: [
+                ("", column_constraint)
+                if isinstance(column_constraint, str)
+                else (
+                    column_constraint[0]
+                    + ("%7C" if "http" in column_constraint[0] else ""),
+                    column_constraint[1],
+                )
+                for column_constraint in list_of_constraints
+            ]
+            for fhir_identifier, list_of_constraints in df_constraints_list.items()
         }
 
     @staticmethod
     def _get_request_params_for_sample(
         df: pd.DataFrame,
         request_params: Dict[str, Any],
-        df_constraints: Dict[str, Tuple[str, str]],
-    ) -> List[Dict[str, str]]:
+        df_constraints: Dict[str, List[Tuple[str, str]]],
+    ) -> List[Dict[str, List[str]]]:
         """
         Builds the request parameters for each sample by checking the constraint set on each row.
         The resulting request parameters are given by the general `request_params` and by the
@@ -806,22 +849,24 @@ class Pirate:
         during a search query and that refer to a DataFrame
         :return: A list of dictionary constraint for each row of the DataFrame
         """
-        for _, (_, value) in df_constraints.items():
-            if df[value].isnull().any():
-                raise ValueError(
-                    f"The column {value} contains NaN values, "
-                    f"and thus it cannot be used to build queries."
-                )
+        for _, list_of_constraints in df_constraints.items():
+            for _, value in list_of_constraints:
+                if df[value].isnull().any():
+                    raise ValueError(
+                        f"The column {value} contains NaN values, "
+                        f"and thus it cannot be used to build queries."
+                    )
         return [
             dict(
                 {
-                    fhir_identifier: (
-                        (system + row[df.columns.get_loc(value)].split("/")[-1])
+                    fhir_identifier: [
+                        (modifier + str(row[df.columns.get_loc(value)]).split("/")[-1])
                         if fhir_identifier == "_id"
-                        else system + row[df.columns.get_loc(value)]
-                    )
+                        else modifier + str(row[df.columns.get_loc(value)])
+                        for modifier, value in list_of_constraints
+                    ]
                     # Concatenate the given system identifier string with the desired identifier
-                    for fhir_identifier, (system, value) in df_constraints.items()
+                    for fhir_identifier, list_of_constraints in df_constraints.items()
                 },
                 **request_params,
             )
@@ -1256,7 +1301,9 @@ class Pirate:
         self,
         df: pd.DataFrame,
         resource_type: str,
-        df_constraints: Dict[str, Union[str, Tuple[str, str]]],
+        df_constraints: Dict[
+            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
+        ],
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
         read_from_cache: bool = False,
