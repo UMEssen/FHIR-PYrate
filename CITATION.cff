@@ -22,6 +22,7 @@ authors:
   - family-names: Nensa
     given-names: Felix
     orcid: https://orcid.org/0000-0002-5811-7100
-title: UMEssen/FHIR-PYrate: v0.1.0
+title: FHIR-PYrate: Extracting FHIR data in an easy and standardized way for clinical users
 version: v0.1.0
 date-released: 2022-08-03
+doi: 10.5281/zenodo.7025226
