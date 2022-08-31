@@ -1,30 +1,31 @@
 cff-version: 1.2.0
-preferred-citation:
-  type: software
-  message: "If you use FHIR-PYrate, please cite it as below."
-  authors:
-  - family-names: René
-    given-names: Hosch
+title: >-
+  FHIR-PYrate: Extracting FHIR data in an easy and
+  standardized way for clinical users
+message: 'If you use FHIR-PYrate, please cite it as below.'
+type: software
+version: v0.1.0
+date-released: 2022-08-03
+doi: 10.5281/zenodo.7025226
+authors:
+  - family-names: Hosch
+    given-names: René
   - family-names: Baldini
     given-names: Giulia
-    orcid: https://orcid.org/0000-0002-5929-0271
+    orcid: 'https://orcid.org/0000-0002-5929-0271'
   - family-names: Parmar
     given-names: Vicky
-    orcid: https://orcid.org/0000-0002-0383-0435
+    orcid: 'https://orcid.org/0000-0002-0383-0435'
   - family-names: Borys
     given-names: Katarzyna
-    orcid: https://orcid.org/0000-0001-6987-6041
+    orcid: 'https://orcid.org/0000-0001-6987-6041'
   - family-names: Koitka
     given-names: Sven
-    orcid: https://orcid.org/0000-0001-9704-1180
+    orcid: 'https://orcid.org/0000-0001-9704-1180'
   - family-names: Engelke
     given-names: Merlin
   - family-names: Ulrich
     given-names: Moritz
   - family-names: Nensa
     given-names: Felix
-    orcid: https://orcid.org/0000-0002-5811-7100
-  title: FHIR-PYrate: Extracting FHIR data in an easy and standardized way for clinical users
-  version: v0.1.0
-  date-released: 2022-08-03
-  doi: 10.5281/zenodo.7025226
+    orcid: 'https://orcid.org/0000-0002-5811-7100'
