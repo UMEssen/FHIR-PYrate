@@ -1,9 +1,11 @@
+import importlib.metadata
 import logging
 
 import fhir_pyrate.util.imports
 from fhir_pyrate.ahoy import Ahoy
 from fhir_pyrate.pirate import Pirate
 
+__version__ = importlib.metadata.version("fhir_pyrate")
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 
