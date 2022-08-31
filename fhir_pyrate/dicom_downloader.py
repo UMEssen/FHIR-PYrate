@@ -371,10 +371,11 @@ class DicomDownloader:
         study_uid_col: str = "study_instance_uid",
         series_uid_col: str = "series_instance_uid",
         skip_existing: bool = True,
-    ) -> pd.DataFrame:
+    ) -> Optional[pd.DataFrame]:
         """
         Go through the already downloaded data and check if there are some instances that have
-        not been stored in the mapping file. A new mapping file with the given name will be stored.
+        not been stored in the mapping file. A new mapping file will be returned. If the output
+        folder where the data is supposed to be stored does not exist or is empty, None is returned.
 
         :param df: The DataFrame that contains the studies that should be downloaded
         :param mapping_df: A DataFrame containing the generated mappings until now
@@ -382,12 +383,14 @@ class DicomDownloader:
         :param study_uid_col: The name of the StudyInstanceUID column of the DataFrame
         :param series_uid_col: The name of the SeriesInstanceUID column of the DataFrame
         :param skip_existing: Whether existing studies should be skipped
-        :return: The fixed mapping DataFrame
+        :return: The fixed mapping DataFrame or None (if output data does not exist)
         """
         output_dir = pathlib.Path(output_dir)
-        assert (
-            output_dir.exists()
-        ), "Cannot fix the mapping file if the output directory does not exist."
+        if not output_dir.exists() or not len(list(output_dir.glob("*"))):
+            logger.warning(
+                "Cannot fix the mapping file if the output directory does not exist."
+            )
+            return None
         if mapping_df is None:
             mapping_df = pd.DataFrame()
         csv_rows = []
