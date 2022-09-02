@@ -4,8 +4,6 @@ title: >-
   standardized way for clinical users
 message: 'If you use FHIR-PYrate, please cite it as below.'
 type: software
-version: v0.1.0
-date-released: 2022-08-03
 doi: 10.5281/zenodo.7025226
 authors:
   - family-names: Hosch
