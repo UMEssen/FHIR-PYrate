@@ -364,7 +364,8 @@ class DicomDownloader:
                         current_dict[self.error_type_field] = "Storing Error"
                     current_dict[self.traceback_field] = traceback.format_exc()
                     error_series_info.append(current_dict)
-                    continue
+                    if not self.turn_off_checks:
+                        continue
 
                 # Store one DICOM to keep the file metadata
                 if save_metadata and self._output_format == "nifti":
