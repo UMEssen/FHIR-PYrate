@@ -384,7 +384,7 @@ df = search.steal_bundles_to_dataframe(
         ("code_abc", "code.coding.where(system = 'ABC').code"),
         ("code_def", "code.coding.where(system = 'DEF').code"),
     ],
-    stop_after_first_page=True,
+    num_pages=1,
 )
 ```
 
@@ -518,7 +518,7 @@ request. You can also simply open an issue with the tag "enhancement".
 
 ## Authors and acknowledgment
 
-This package was developed at the [Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/). 
+This package was developed at the [Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/).
 
 - [gakusai](https://github.com/gakusai): initial idea, development, logo & figures
 - [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
