@@ -1,7 +1,6 @@
 cff-version: 1.2.0
 title: >-
-  FHIR-PYrate: Extracting FHIR data in an easy and
-  standardized way for clinical users
+  FHIR-PYrate: FHIR-PYrate: A data science friendly Python package to query FHIR servers
 message: 'If you use FHIR-PYrate, please cite it as below.'
 type: software
 doi: 10.5281/zenodo.7025226
