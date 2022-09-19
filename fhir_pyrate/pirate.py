@@ -375,7 +375,7 @@ class Pirate:
         disable_multiprocessing: bool = False,
     ) -> pd.DataFrame:
         logger.warning(
-            "The trade_rows_for_dataframe_with_ref function is deprecated, please use"
+            "The trade_rows_for_dataframe_with_ref function is deprecated, please use "
             "trade_rows_for_dataframe(..., with_ref=True) instead."
         )
         return self.trade_rows_for_dataframe(
