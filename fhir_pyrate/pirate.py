@@ -404,6 +404,7 @@ class Pirate:
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
         with_ref: bool = False,
+        with_columns: List[str] = None,
         merge_on: str = None,
         read_from_cache: bool = False,
         disable_multiprocessing: bool = False,
@@ -439,6 +440,8 @@ class Pirate:
         assuming that there are that many
         :param with_ref: Whether the input columns of `df_constraints` should be added to the
         output DataFrame
+        :param with_columns: Whether additional columns from the source DataFrame should be
+        added to output DataFrame, as a list of column names from the source DataFrames
         :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
         to merge all the rows into one, example below
@@ -489,7 +492,7 @@ class Pirate:
                     f"overwritten."
                 )
                 process_function = self._set_up_fhirpath_function(fhir_paths)
-            if not with_ref:
+            if not with_ref and not with_columns:
                 df = self._bundles_to_dataframe(
                     bundles=self._trade_rows_for_bundles(
                         df=df,
@@ -516,15 +519,26 @@ class Pirate:
                     request_params=request_params,
                     df_constraints=adjusted_constraints,
                 )
+                # Make sure that the with_columns columns are not also in df_constraints
+                with_columns = (
+                    [col for col in with_columns if col not in df_constraints.keys()]
+                    if with_columns is not None
+                    else []
+                )
                 # Prepare the inputs that will end up in the final dataframe
                 input_params_per_sample = [
                     {
-                        # The name of the parameter will be the same as the column name
-                        # The value will be the same as the value in that column for that row
-                        value: row[df.columns.get_loc(value)]
-                        # Concatenate the given system identifier string with the desired identifier
-                        for _, list_of_constraints in adjusted_constraints.items()
-                        for _, value in list_of_constraints
+                        **{
+                            # The name of the parameter will be the same as the column name
+                            # The value will be the same as the value in that column for that row
+                            value: row[df.columns.get_loc(value)]
+                            # Concatenate the given system identifier string with the desired
+                            # identifier
+                            for _, list_of_constraints in adjusted_constraints.items()
+                            for _, value in list_of_constraints
+                        },
+                        # Add other columns from with_columns
+                        **{col: row[df.columns.get_loc(col)] for col in with_columns},
                     }
                     for row in df.itertuples(index=False)
                 ]
