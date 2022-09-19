@@ -117,6 +117,8 @@ class DicomDownloader:
     given a download ID 263a1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd
     and `hierarchical_storage` = 2, the data will be stored in
     26/3a/1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd.
+    :param turn_off_checks: The checks on the DICOM files will be turned off and whatever kind of
+    DICOM was downloaded will be copied to the output folder.
     :param retry: This flag will set the retry parameter of the DicomWebClient, which activates
     HTTP retrying
     """
@@ -127,6 +129,7 @@ class DicomDownloader:
         dicom_web_url: str,
         output_format: str = "nifti",
         hierarchical_storage: int = 0,
+        turn_off_checks: bool = False,
         retry: bool = False,
     ):
         self.dicom_web_url = dicom_web_url
@@ -151,6 +154,7 @@ class DicomDownloader:
         self.download_id_field = "download_id"
         self.error_type_field = "error"
         self.traceback_field = "traceback"
+        self.turn_off_checks = turn_off_checks
         self.hierarchical_storage = hierarchical_storage
 
     def set_output_format(self, new_output_format: str) -> None:
@@ -341,12 +345,27 @@ class DicomDownloader:
                                 series_download_dir / f"{pathlib.Path(dcm_file).name}",
                             )
                 except Exception:
-                    logger.debug(traceback.format_exc())
-                    logger.info(f"Series {series} could not be stored.")
-                    current_dict[self.error_type_field] = "Storing Error"
+                    if self.turn_off_checks:
+                        if self._output_format == "nifti":
+                            logger.info(
+                                f"Problems occurred when converting {series} to NIFTI, "
+                                f"it will be stored as DICOM instead."
+                            )
+                        series_download_dir.mkdir(exist_ok=True, parents=True)
+                        for dcm_file in files:
+                            shutil.copy2(
+                                dcm_file,
+                                series_download_dir / f"{pathlib.Path(dcm_file).name}",
+                            )
+                        current_dict[self.error_type_field] = "Storing Warning"
+                    else:
+                        logger.debug(traceback.format_exc())
+                        logger.info(f"Series {series} could not be stored.")
+                        current_dict[self.error_type_field] = "Storing Error"
                     current_dict[self.traceback_field] = traceback.format_exc()
                     error_series_info.append(current_dict)
-                    continue
+                    if not self.turn_off_checks:
+                        continue
 
                 # Store one DICOM to keep the file metadata
                 if save_metadata and self._output_format == "nifti":
