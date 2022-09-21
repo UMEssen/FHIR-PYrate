@@ -174,6 +174,7 @@ class Pirate:
         read_from_cache: bool = False,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        merge_on: str = None,
         build_df_after_query: bool = False,
     ) -> pd.DataFrame:
         """
@@ -195,6 +196,9 @@ class Pirate:
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
         :return: A DataFrame containing the queried information
@@ -207,6 +211,7 @@ class Pirate:
             read_from_cache=read_from_cache,
             process_function=process_function,
             fhir_paths=fhir_paths,
+            merge_on=merge_on,
             build_df_after_query=build_df_after_query,
             disable_post_multiprocessing=True,
         )
@@ -263,6 +268,7 @@ class Pirate:
         disable_multiprocessing: bool = False,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        merge_on: str = None,
         build_df_after_query: bool = False,
     ) -> pd.DataFrame:
         """
@@ -291,6 +297,9 @@ class Pirate:
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
         :return: A DataFrame containing FHIR bundles with the queried information for all timespans
@@ -305,6 +314,7 @@ class Pirate:
             disable_multiprocessing=disable_multiprocessing,
             process_function=process_function,
             fhir_paths=fhir_paths,
+            merge_on=merge_on,
             build_df_after_query=build_df_after_query,
         )
 
@@ -392,29 +402,6 @@ class Pirate:
             disable_multiprocessing=disable_multiprocessing,
         )
 
-    @staticmethod
-    def _copy_existing_columns(
-        df: pd.DataFrame,
-        input_params: Dict[str, str],
-        key_mapping: Dict[str, str],
-    ) -> None:
-        """
-        Copy the existing columns into the new DataFrame.
-
-        :param df: The DataFrame that was generated from the bundles
-        :param input_params: The input columns that should be added to the new DataFrame
-        :param key_mapping: A dictionary that can be used to change the name of the input columns
-        """
-        # Add the key from the input
-        for key, value in input_params.items():
-            if key_mapping[key] in df.columns:
-                logger.warning(
-                    f"A column with name {key_mapping[key]} already exists in the output"
-                    f"DataFrame, and the column {key} will not be copied."
-                )
-            else:
-                df[key_mapping[key]] = value
-
     def trade_rows_for_dataframe(
         self,
         df: pd.DataFrame,
@@ -467,7 +454,7 @@ class Pirate:
         added to output DataFrame, as a list of column names from the source DataFrames
         :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one, example below
+        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
         :param disable_multiprocessing: Whether the rows should be processed sequentially or in
@@ -482,31 +469,6 @@ class Pirate:
         been collected, or whether the bundles should be transformed just after retrieving
         :return: A DataFrame containing FHIR bundles with the queried information for all rows
         and if requested some columns containing the original constraints
-
-
-        The following example will initially return one row for each entry, but using
-        `group_row="patient_id"` we choose a column to run the merge on. This will merge the
-        columns that contain values that for the others are empty, having then one row representing
-        one patient.
-        ```
-        df = search.trade_rows_for_dataframe(
-            resource_type="Patient",
-            request_params={
-                "_sort": "_id",
-                "_count": 10,
-                "birthdate": "ge1990",
-                "_revinclude": "Condition:subject",
-            },
-            fhir_paths=[
-                ("patient_id", "Patient.id"),
-                ("patient_id", "Condition.subject.reference.replace('Patient/', '')"),
-                "Patient.gender",
-                "Condition.code.coding.code",
-            ],
-            num_pages=1,
-            merge_on="patient_id"
-        )
-        ```
         """
         with logging_redirect_tqdm():
             if fhir_paths is not None:
@@ -516,7 +478,7 @@ class Pirate:
                 )
                 process_function = self._set_up_fhirpath_function(fhir_paths)
             if not with_ref and not with_columns:
-                df = self._bundles_to_dataframe(
+                return self._bundles_to_dataframe(
                     bundles=self._trade_rows_for_bundles(
                         df=df,
                         resource_type=resource_type,
@@ -528,138 +490,138 @@ class Pirate:
                         tqdm_df_build=not build_df_after_query,
                     ),
                     process_function=process_function,
+                    merge_on=merge_on,
                     build_df_after_query=build_df_after_query,
                     disable_multiprocessing=disable_multiprocessing,
                 )
+            logger.info(
+                f"Querying each row of the DataFrame with {self.num_processes} processes."
+            )
+            request_params = {} if request_params is None else request_params.copy()
+            adjusted_constraints = self._adjust_df_constraints(df_constraints)
+            req_params_per_sample = self._get_request_params_for_sample(
+                df=df,
+                request_params=request_params,
+                df_constraints=adjusted_constraints,
+            )
+            # Reformat the with_columns attribute such that it becomes a list of tuples
+            # (new_name, current_name)
+            # The columns to be added are either as elements in the list
+            # [col1, col2, ...]
+            # or as second argument of a tuple
+            # [(renamed_col_1, col1), ...]
+            with_columns_adjusted = (
+                [(col, col) if isinstance(col, str) else col for col in with_columns]
+                if with_columns is not None
+                else []
+            )
+            # Create a dictionary to rename the columns
+            with_columns_rename = {
+                col: col_rename for col_rename, col in with_columns_adjusted
+            }
+            # Also go through the df_constraints, in case they are not in the list for renaming
+            for _, list_of_constraints in adjusted_constraints.items():
+                for _, value in list_of_constraints:
+                    if value not in with_columns_rename:
+                        with_columns_rename[value] = value
+            # Prepare the inputs that will end up in the final dataframe
+            input_params_per_sample = [
+                {
+                    **{
+                        # The name of the parameter will be the same as the column name
+                        # The value will be the same as the value in that column for that row
+                        value: row[df.columns.get_loc(value)]
+                        # Concatenate the given system identifier string with the desired
+                        # identifier
+                        for _, list_of_constraints in adjusted_constraints.items()
+                        for _, value in list_of_constraints
+                    },
+                    # Add other columns from with_columns
+                    **{
+                        col: row[df.columns.get_loc(col)]
+                        for _, col in with_columns_adjusted
+                    },
+                }
+                for row in df.itertuples(index=False)
+            ]
+            # The parameters used for post-processing (bundles to dataframe)
+            params_for_post = {
+                "process_function": process_function,
+                "build_df_after_query": False,
+                (
+                    "disable_post_multiprocessing"
+                    if disable_multiprocessing
+                    else "disable_multiprocessing"
+                ): True,  # The multiprocessing already happens on the rows
+            }
+            # Add all the parameters needed by the steal_bundles function
+            params_per_sample = [
+                {
+                    "resource_type": resource_type,
+                    "request_params": req_sample,
+                    "num_pages": num_pages,
+                    "silence_tqdm": True,
+                    "read_from_cache": read_from_cache,
+                }
+                for req_sample in req_params_per_sample
+            ]
+            found_dfs = []
+            tqdm_text = f"Query & Build DF ({resource_type})"
+            # TODO: Can the merge_on be run for each smaller DataFrame?
+            #  is there the possibility to have resources referring to the same thing in
+            #  different bundles?
+            if disable_multiprocessing:
+                # If we don't want multiprocessing
+                for param, input_param in tqdm(
+                    zip(params_per_sample, input_params_per_sample),
+                    total=len(params_per_sample),
+                    desc=tqdm_text,
+                ):
+                    # Get the dataframe
+                    found_df = self._query_to_dataframe(self._bundle_fn)(
+                        **param, **params_for_post
+                    )
+                    self._copy_existing_columns(
+                        df=found_df,
+                        input_params=input_param,
+                        key_mapping=with_columns_rename,
+                    )
+                    found_dfs.append(found_df)
             else:
-                logger.info(
-                    f"Querying each row of the DataFrame with {self.num_processes} processes."
-                )
-                request_params = {} if request_params is None else request_params.copy()
-                adjusted_constraints = self._adjust_df_constraints(df_constraints)
-                req_params_per_sample = self._get_request_params_for_sample(
-                    df=df,
-                    request_params=request_params,
-                    df_constraints=adjusted_constraints,
-                )
-                # Reformat the with_columns attribute such that it becomes a list of tuples
-                # (new_name, current_name)
-                # The columns to be added are either as elements in the list
-                # [col1, col2, ...]
-                # or as second argument of a tuple
-                # [(renamed_col_1, col1), ...]
-                with_columns_adjusted = (
-                    [
-                        (col, col) if isinstance(col, str) else col
-                        for col in with_columns
-                    ]
-                    if with_columns is not None
-                    else []
-                )
-                # Create a dictionary to rename the columns
-                with_columns_rename = {
-                    col: col_rename for col_rename, col in with_columns_adjusted
-                }
-                # Also go through the df_constraints, in case they are not in the list for renaming
-                for _, list_of_constraints in adjusted_constraints.items():
-                    for _, value in list_of_constraints:
-                        if value not in with_columns_rename:
-                            with_columns_rename[value] = value
-                # Prepare the inputs that will end up in the final dataframe
-                input_params_per_sample = [
-                    {
-                        **{
-                            # The name of the parameter will be the same as the column name
-                            # The value will be the same as the value in that column for that row
-                            value: row[df.columns.get_loc(value)]
-                            # Concatenate the given system identifier string with the desired
-                            # identifier
-                            for _, list_of_constraints in adjusted_constraints.items()
-                            for _, value in list_of_constraints
-                        },
-                        # Add other columns from with_columns
-                        **{
-                            col: row[df.columns.get_loc(col)]
-                            for _, col in with_columns_adjusted
-                        },
-                    }
-                    for row in df.itertuples(index=False)
-                ]
-                # The parameters used for post-processing (bundles to dataframe)
-                params_for_post = {
-                    "process_function": process_function,
-                    "build_df_after_query": False,
-                    (
-                        "disable_post_multiprocessing"
-                        if disable_multiprocessing
-                        else "disable_multiprocessing"
-                    ): True,  # The multiprocessing already happens on the rows
-                }
-                # Add all the parameters needed by the steal_bundles function
-                params_per_sample = [
-                    {
-                        "resource_type": resource_type,
-                        "request_params": req_sample,
-                        "num_pages": num_pages,
-                        "silence_tqdm": True,
-                        "read_from_cache": read_from_cache,
-                    }
-                    for req_sample in req_params_per_sample
-                ]
-                found_dfs = []
-                tqdm_text = f"Query & Build DF ({resource_type})"
-                if disable_multiprocessing:
-                    # If we don't want multiprocessing
-                    for param, input_param in tqdm(
-                        zip(params_per_sample, input_params_per_sample),
-                        total=len(params_per_sample),
-                        desc=tqdm_text,
-                    ):
-                        # Get the dataframe
-                        found_df = self._query_to_dataframe(self._bundle_fn)(
-                            **param, **params_for_post
+                pool = multiprocessing.Pool(self.num_processes)
+                results = []
+                for param, input_param in tqdm(
+                    zip(params_per_sample, input_params_per_sample),
+                    total=len(params_per_sample),
+                    desc=tqdm_text,
+                ):
+                    # Add the functions that we want to run
+                    results.append(
+                        (
+                            pool.apply_async(
+                                self._bundles_to_dataframe,
+                                args=[self._bundle_fn_to_list(**param)],
+                                kwds=params_for_post,
+                            ),
+                            input_param,
                         )
-                        self._copy_existing_columns(
-                            df=found_df,
-                            input_params=input_param,
-                            key_mapping=with_columns_rename,
-                        )
-                        found_dfs.append(found_df)
-                else:
-                    pool = multiprocessing.Pool(self.num_processes)
-                    results = []
-                    for param, input_param in tqdm(
-                        zip(params_per_sample, input_params_per_sample),
-                        total=len(params_per_sample),
-                        desc=tqdm_text,
-                    ):
-                        # Add the functions that we want to run
-                        results.append(
-                            (
-                                pool.apply_async(
-                                    self._bundles_to_dataframe,
-                                    args=[self._bundle_fn_to_list(**param)],
-                                    kwds=params_for_post,
-                                ),
-                                input_param,
-                            )
-                        )
-                    for async_result, input_param in results:
-                        # Get the results and build the dataframes
-                        found_df = async_result.get()
-                        self._copy_existing_columns(
-                            df=found_df,
-                            input_params=input_param,
-                            key_mapping=with_columns_rename,
-                        )
-                        found_dfs.append(found_df)
-                    pool.close()
-                    pool.join()
-                df = pd.concat(found_dfs, ignore_index=True)
+                    )
+                for async_result, input_param in results:
+                    # Get the results and build the dataframes
+                    found_df = async_result.get()
+                    self._copy_existing_columns(
+                        df=found_df,
+                        input_params=input_param,
+                        key_mapping=with_columns_rename,
+                    )
+                    found_dfs.append(found_df)
+                pool.close()
+                pool.join()
+            df = pd.concat(found_dfs, ignore_index=True)
             return (
                 df
                 if merge_on is None or len(df) == 0
-                else self.merge_on_row(df, merge_on)
+                else self.merge_on_col(df, merge_on)
             )
 
     def bundles_to_dataframe(
@@ -667,6 +629,7 @@ class Pirate:
         bundles: Union[List[FHIRObj], Generator[FHIRObj, None, int]],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        merge_on: str = None,
     ) -> pd.DataFrame:
         """
         Convert a bundle into a DataFrame using either the `flatten_data` function (default),
@@ -680,6 +643,9 @@ class Pirate:
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path).
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, example below
         :return: A pandas DataFrame containing the queried information
         **NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as
         modulus (`mod`) or integer division (`div`), and this may be problematic if there are
@@ -717,6 +683,30 @@ class Pirate:
             num_pages=1,
         )
         ```
+
+        The following example will initially return one row for each entry, but using
+        `group_row="patient_id"` we choose a column to run the merge on. This will merge the
+        columns that contain values that for the others are empty, having then one row representing
+        one patient.
+        ```
+        df = search.trade_rows_for_dataframe(
+            resource_type="Patient",
+            request_params={
+                "_sort": "_id",
+                "_count": 10,
+                "birthdate": "ge1990",
+                "_revinclude": "Condition:subject",
+            },
+            fhir_paths=[
+                ("patient_id", "Patient.id"),
+                ("patient_id", "Condition.subject.reference.replace('Patient/', '')"),
+                "Patient.gender",
+                "Condition.code.coding.code",
+            ],
+            num_pages=1,
+            merge_on="patient_id"
+        )
+        ```
         """
         with logging_redirect_tqdm():
             if fhir_paths is not None:
@@ -728,19 +718,21 @@ class Pirate:
             return self._bundles_to_dataframe(
                 bundles=bundles,
                 process_function=process_function,
+                merge_on=merge_on,
                 build_df_after_query=True,
             )
 
     @staticmethod
-    def merge_on_row(df: pd.DataFrame, merge_on: str) -> pd.DataFrame:
+    def merge_on_col(df: pd.DataFrame, merge_on: str) -> pd.DataFrame:
         """
         Merges rows from different resources on a given attribute.
         :param df: The DataFrame where the merge should be applied
         :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one, example below
+        to merge all the rows into one
         :return: A DataFrame where the rows having the same `merge_on` attribute are merged.
         """
+        # TODO: Could probably be done more efficiently?
         new_df = df[merge_on]
         for col in df.columns:
             if col == merge_on:
@@ -1418,6 +1410,29 @@ class Pirate:
                 disable_multiprocess=disable_multiprocessing,
             )
 
+    @staticmethod
+    def _copy_existing_columns(
+        df: pd.DataFrame,
+        input_params: Dict[str, str],
+        key_mapping: Dict[str, str],
+    ) -> None:
+        """
+        Copy the existing columns into the new DataFrame.
+
+        :param df: The DataFrame that was generated from the bundles
+        :param input_params: The input columns that should be added to the new DataFrame
+        :param key_mapping: A dictionary that can be used to change the name of the input columns
+        """
+        # Add the key from the input
+        for key, value in input_params.items():
+            if key_mapping[key] in df.columns:
+                logger.warning(
+                    f"A column with name {key_mapping[key]} already exists in the output"
+                    f"DataFrame, and the column {key} will not be copied."
+                )
+            else:
+                df[key_mapping[key]] = value
+
     def _set_up_fhirpath_function(
         self, fhir_paths: List[Union[str, Tuple[str, str]]]
     ) -> Callable:
@@ -1462,6 +1477,7 @@ class Pirate:
         self,
         bundles: Union[List[FHIRObj], Generator[FHIRObj, None, int]],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
+        merge_on: str = None,
         build_df_after_query: bool = False,
         disable_multiprocessing: bool = False,
     ) -> pd.DataFrame:
@@ -1474,6 +1490,9 @@ class Pirate:
         :param bundles: The bundles to transform
         :param process_function: The transformation function going through the entries and
         storing the entries to save
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
         :param disable_multiprocessing: Whether the bundles should be processed sequentially
@@ -1502,7 +1521,10 @@ class Pirate:
                 ]
             pool.close()
             pool.join()
-        return pd.DataFrame(results)
+        df = pd.DataFrame(results)
+        return (
+            df if merge_on is None or len(df) == 0 else self.merge_on_col(df, merge_on)
+        )
 
     def _query_to_dataframe(
         self,
@@ -1520,6 +1542,7 @@ class Pirate:
         def wrap(
             process_function: Callable[[FHIRObj], Any] = flatten_data,
             fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+            merge_on: str = None,
             build_df_after_query: bool = False,
             disable_post_multiprocessing: bool = False,
             *args: Any,
@@ -1537,6 +1560,7 @@ class Pirate:
                         *args, **kwargs, tqdm_df_build=not build_df_after_query
                     ),
                     process_function=process_function,
+                    merge_on=merge_on,
                     build_df_after_query=build_df_after_query,
                     disable_multiprocessing=disable_post_multiprocessing,
                 )
