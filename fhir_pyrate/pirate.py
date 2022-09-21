@@ -359,77 +359,6 @@ class Pirate:
             tqdm_df_build=False,
         )
 
-    def trade_rows_for_dataframe(
-        self,
-        df: pd.DataFrame,
-        resource_type: str,
-        df_constraints: Dict[
-            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
-        ],
-        request_params: Dict[str, Any] = None,
-        num_pages: int = -1,
-        read_from_cache: bool = False,
-        disable_multiprocessing: bool = False,
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        merge_on: str = None,
-        build_df_after_query: bool = False,
-    ) -> pd.DataFrame:
-        """
-        Go through the rows of a DataFrame (with multiprocessing), run a query, retrieve
-        bundles for each row and transform them into a DataFrame.
-
-        :param df: The DataFrame with the queries
-        :param resource_type: The resource to query, e.g. Patient, DiagnosticReport
-        :param df_constraints: A dictionary containing a mapping between the FHIR attributes and
-        the columns of the input DataFrame, e.g. {"subject" : "fhir_patient_id"}, where subject
-        is the FHIR attribute and fhir_patient_id is the name of the column. It is also possible
-        to add the system by using a tuple instead of a string, e.g. "code": (
-        "http://loinc.org", "loinc_code")
-        Possible structures:
-        {"code": "code_column"}
-        {"code": ("code_system", "code_column")}
-        {"date": ["init_date_column", "end_date_column"]}
-        {"date": [("ge", "init_date_column"), ("le", "end_date_column")]}
-        :param request_params: The parameters for the query, e.g. _count, _id
-        :param num_pages: The number of pages of bundles that should be returned, the default is
-        -1 (all bundles), with any other value exactly that value of bundles will be returned,
-        assuming that there are that many
-        :param read_from_cache: Whether we should read the bundles from a cache folder,
-        in case they have already been computed
-        :param disable_multiprocessing: If true, the bundles will be processed sequentially and
-        then returned as a Generator; if false, the bundles for each query will be first converted
-        to a list (because Generators cannot be pickled, and thus cannot be used by multiprocessing),
-        and then they will be yielded as a Generator
-        :param process_function: The transformation function going through the entries and
-        storing the entries to save
-        :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
-        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
-        future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
-        functions for notes on how to use the FHIR paths
-        :param merge_on: Whether to merge the results on a certain row after computing. This is
-        useful when using includes, if you store the IDs on the same column you can use that column,
-        an example can be found in `trade_rows_for_dataframe_with_ref`
-        :param build_df_after_query: Whether the DataFrame should be built after all bundles have
-        been collected, or whether the bundles should be transformed just after retrieving
-        :return: A DataFrame containing FHIR bundles with the queried information for all rows
-        """
-        df = self._query_to_dataframe(self._trade_rows_for_bundles)(
-            df=df,
-            resource_type=resource_type,
-            df_constraints=df_constraints,
-            request_params=request_params,
-            num_pages=num_pages,
-            read_from_cache=read_from_cache,
-            disable_multiprocessing=disable_multiprocessing,
-            process_function=process_function,
-            fhir_paths=fhir_paths,
-            build_df_after_query=build_df_after_query,
-        )
-        return (
-            df if merge_on is None or len(df) == 0 else self.merge_on_row(df, merge_on)
-        )
-
     def trade_rows_for_dataframe_with_ref(
         self,
         df: pd.DataFrame,
@@ -445,14 +374,51 @@ class Pirate:
         read_from_cache: bool = False,
         disable_multiprocessing: bool = False,
     ) -> pd.DataFrame:
+        logger.warning(
+            "The trade_rows_for_dataframe_with_ref function is deprecated, please use"
+            "trade_rows_for_dataframe(..., with_ref=True) instead."
+        )
+        return self.trade_rows_for_dataframe(
+            df=df,
+            resource_type=resource_type,
+            df_constraints=df_constraints,
+            process_function=process_function,
+            fhir_paths=fhir_paths,
+            request_params=request_params,
+            num_pages=num_pages,
+            with_ref=True,
+            merge_on=merge_on,
+            read_from_cache=read_from_cache,
+            disable_multiprocessing=disable_multiprocessing,
+        )
+
+    def trade_rows_for_dataframe(
+        self,
+        df: pd.DataFrame,
+        resource_type: str,
+        df_constraints: Dict[
+            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
+        ],
+        process_function: Callable[[FHIRObj], Any] = flatten_data,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        request_params: Dict[str, Any] = None,
+        num_pages: int = -1,
+        with_ref: bool = False,
+        merge_on: str = None,
+        read_from_cache: bool = False,
+        disable_multiprocessing: bool = False,
+        build_df_after_query: bool = False,
+    ) -> pd.DataFrame:
         """
         Go through the rows of a DataFrame (with multiprocessing), run a query, retrieve
-        bundles and store them in a DataFrame. There are two differences between this approach
-        and trade_rows_for_dataframe:
-        1. Here, the bundles are retrieved and the DataFrame is computed straight away. In
-        trade_rows_for_dataframe this can be obtained by setting `build_df_after_query` to False.
-        2. If the `df_constraints` constraints are specified, they will end up in the final
-        DataFrame as a reference
+        bundles for each row and transform them into a DataFrame.
+
+        The DataFrames can be computed in different ways:
+        1. The bundles are retrieved and the DataFrame is computed straight away, which can be
+        obtained by setting `build_df_after_query` to False. If `with_ref` is True, then the
+        DataFrame is always computed like this.
+        2. If `build_df_after_query` is True and `with_ref` is False, then first all bundles
+        will be retrieved, and then they will be processed into a DataFrame.
 
         :param df: The DataFrame with the queries
         :param resource_type: The resource to query, e.g. Patient, DiagnosticReport
@@ -461,27 +427,35 @@ class Pirate:
         is the FHIR attribute and fhir_patient_id is the name of the column. It is also possible
         to add the system by using a tuple instead of a string, e.g. "code": (
         "http://loinc.org", "loinc_code")
+        Possible structures:
+        {"code": "code_column"}
+        {"code": ("code_system", "code_column")}
+        {"date": ["init_date_column", "end_date_column"]}
+        {"date": [("ge", "init_date_column"), ("le", "end_date_column")]}
         :param request_params: The parameters for the query, e.g. _count, _id
-        :param num_pages: The number of pages of bundles that should be returned, the default is
-        -1 (all bundles), with any other value exactly that value of bundles will be returned,
+        :param num_pages: The number of pages of bundles that should be returned per request,
+        the default is -1 (all bundles),
+        with any other value exactly that value of bundles will be returned,
         assuming that there are that many
+        :param with_ref: Whether the input columns of `df_constraints` should be added to the
+        output DataFrame
         :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
         to merge all the rows into one, example below
         :param read_from_cache: Whether we should read the bundles from a cache folder,
         in case they have already been computed
-        :param disable_multiprocessing: If true, the bundles will be processed sequentially and
-        then returned as a Generator; if false, the bundles for each query will be first converted
-        to a list (because Generators cannot be pickled, and thus cannot be used by multiprocessing),
-        and then they will be yielded as a Generator
+        :param disable_multiprocessing: Whether the rows should be processed sequentially or in
+        parallel
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths
+        :param build_df_after_query: Whether the DataFrame should be built after all bundles have
+        been collected, or whether the bundles should be transformed just after retrieving
         :return: A DataFrame containing FHIR bundles with the queried information for all rows
-        and some additional columns containing the original constraints
+        and if requested some columns containing the original constraints
 
 
         The following example will initially return one row for each entry, but using
@@ -489,7 +463,7 @@ class Pirate:
         columns that contain values that for the others are empty, having then one row representing
         one patient.
         ```
-        df = search.trade_rows_for_dataframe_with_ref(
+        df = search.trade_rows_for_dataframe(
             resource_type="Patient",
             request_params={
                 "_sort": "_id",
@@ -515,94 +489,111 @@ class Pirate:
                     f"overwritten."
                 )
                 process_function = self._set_up_fhirpath_function(fhir_paths)
-            request_params = {} if request_params is None else request_params.copy()
-            logger.info(
-                f"Querying each row of the DataFrame with {self.num_processes} processes."
-            )
-            adjusted_constraints = self._adjust_df_constraints(df_constraints)
-            req_params_per_sample = self._get_request_params_for_sample(
-                df=df,
-                request_params=request_params,
-                df_constraints=adjusted_constraints,
-            )
-            # Prepare the inputs that will end up in the final dataframe
-            input_params_per_sample = [
-                {
-                    # The name of the parameter will be the same as the column name
-                    # The value will be the same as the value in that column for that row
-                    value: row[df.columns.get_loc(value)]
-                    # Concatenate the given system identifier string with the desired identifier
-                    for _, list_of_constraints in adjusted_constraints.items()
-                    for _, value in list_of_constraints
-                }
-                for row in df.itertuples(index=False)
-            ]
-            # The parameters used for post-processing (bundles to dataframe)
-            params_for_post = {
-                "process_function": process_function,
-                "build_df_after_query": False,
-                (
-                    "disable_post_multiprocessing"
-                    if disable_multiprocessing
-                    else "disable_multiprocessing"
-                ): True,  # The multiprocessing already happens on the rows
-            }
-            # Add all the parameters needed by the steal_bundles function
-            params_per_sample = [
-                {
-                    "resource_type": resource_type,
-                    "request_params": req_sample,
-                    "num_pages": num_pages,
-                    "silence_tqdm": True,
-                    "read_from_cache": read_from_cache,
-                }
-                for req_sample in req_params_per_sample
-            ]
-            found_dfs = []
-            tqdm_text = f"Query & Build DF ({resource_type})"
-            if disable_multiprocessing:
-                # If we don't want multiprocessing
-                for param, input_param in tqdm(
-                    zip(params_per_sample, input_params_per_sample),
-                    total=len(params_per_sample),
-                    desc=tqdm_text,
-                ):
-                    # Get the dataframe
-                    found_df = self._query_to_dataframe(self._bundle_fn)(
-                        **param, **params_for_post
-                    )
-                    # Add the key from the input
-                    for key, value in input_param.items():
-                        found_df[key] = value
-                    found_dfs.append(found_df)
+            if not with_ref:
+                df = self._bundles_to_dataframe(
+                    bundles=self._trade_rows_for_bundles(
+                        df=df,
+                        resource_type=resource_type,
+                        df_constraints=df_constraints,
+                        request_params=request_params,
+                        num_pages=num_pages,
+                        read_from_cache=read_from_cache,
+                        disable_multiprocessing=disable_multiprocessing,
+                        tqdm_df_build=not build_df_after_query,
+                    ),
+                    process_function=process_function,
+                    build_df_after_query=build_df_after_query,
+                    disable_multiprocessing=disable_multiprocessing,
+                )
             else:
-                pool = multiprocessing.Pool(self.num_processes)
-                results = []
-                for param, input_param in tqdm(
-                    zip(params_per_sample, input_params_per_sample),
-                    total=len(params_per_sample),
-                    desc=tqdm_text,
-                ):
-                    # Add the functions that we want to run
-                    results.append(
-                        (
-                            pool.apply_async(
-                                self._bundles_to_dataframe,
-                                args=[self._bundle_fn_to_list(**param)],
-                                kwds=params_for_post,
-                            ),
-                            input_param,
+                logger.info(
+                    f"Querying each row of the DataFrame with {self.num_processes} processes."
+                )
+                request_params = {} if request_params is None else request_params.copy()
+                adjusted_constraints = self._adjust_df_constraints(df_constraints)
+                req_params_per_sample = self._get_request_params_for_sample(
+                    df=df,
+                    request_params=request_params,
+                    df_constraints=adjusted_constraints,
+                )
+                # Prepare the inputs that will end up in the final dataframe
+                input_params_per_sample = [
+                    {
+                        # The name of the parameter will be the same as the column name
+                        # The value will be the same as the value in that column for that row
+                        value: row[df.columns.get_loc(value)]
+                        # Concatenate the given system identifier string with the desired identifier
+                        for _, list_of_constraints in adjusted_constraints.items()
+                        for _, value in list_of_constraints
+                    }
+                    for row in df.itertuples(index=False)
+                ]
+                # The parameters used for post-processing (bundles to dataframe)
+                params_for_post = {
+                    "process_function": process_function,
+                    "build_df_after_query": False,
+                    (
+                        "disable_post_multiprocessing"
+                        if disable_multiprocessing
+                        else "disable_multiprocessing"
+                    ): True,  # The multiprocessing already happens on the rows
+                }
+                # Add all the parameters needed by the steal_bundles function
+                params_per_sample = [
+                    {
+                        "resource_type": resource_type,
+                        "request_params": req_sample,
+                        "num_pages": num_pages,
+                        "silence_tqdm": True,
+                        "read_from_cache": read_from_cache,
+                    }
+                    for req_sample in req_params_per_sample
+                ]
+                found_dfs = []
+                tqdm_text = f"Query & Build DF ({resource_type})"
+                if disable_multiprocessing:
+                    # If we don't want multiprocessing
+                    for param, input_param in tqdm(
+                        zip(params_per_sample, input_params_per_sample),
+                        total=len(params_per_sample),
+                        desc=tqdm_text,
+                    ):
+                        # Get the dataframe
+                        found_df = self._query_to_dataframe(self._bundle_fn)(
+                            **param, **params_for_post
                         )
-                    )
-                for async_result, input_param in results:
-                    # Get the results and build the dataframes
-                    found_df = async_result.get()
-                    for key, value in input_param.items():
-                        found_df[key] = value
-                    found_dfs.append(found_df)
-                pool.close()
-                pool.join()
-            df = pd.concat(found_dfs, ignore_index=True)
+                        # Add the key from the input
+                        for key, value in input_param.items():
+                            found_df[key] = value
+                        found_dfs.append(found_df)
+                else:
+                    pool = multiprocessing.Pool(self.num_processes)
+                    results = []
+                    for param, input_param in tqdm(
+                        zip(params_per_sample, input_params_per_sample),
+                        total=len(params_per_sample),
+                        desc=tqdm_text,
+                    ):
+                        # Add the functions that we want to run
+                        results.append(
+                            (
+                                pool.apply_async(
+                                    self._bundles_to_dataframe,
+                                    args=[self._bundle_fn_to_list(**param)],
+                                    kwds=params_for_post,
+                                ),
+                                input_param,
+                            )
+                        )
+                    for async_result, input_param in results:
+                        # Get the results and build the dataframes
+                        found_df = async_result.get()
+                        for key, value in input_param.items():
+                            found_df[key] = value
+                        found_dfs.append(found_df)
+                    pool.close()
+                    pool.join()
+                df = pd.concat(found_dfs, ignore_index=True)
             return (
                 df
                 if merge_on is None or len(df) == 0

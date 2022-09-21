@@ -261,7 +261,7 @@ class ExampleTests(unittest.TestCase):
         assert len(condition_df) == 31
         patient_df = condition_df["patient_id"].drop_duplicates(keep="first").to_frame()
         assert len(patient_df) == 31
-        observation_df = self.search.trade_rows_for_dataframe_with_ref(
+        observation_df = self.search.trade_rows_for_dataframe(
             df=patient_df,
             resource_type="Observation",
             request_params={
@@ -269,6 +269,7 @@ class ExampleTests(unittest.TestCase):
                 "code": "http://loinc.org%7C55284-4",
                 "_sort": "_id",
             },
+            with_ref=True,
             df_constraints={"subject": "patient_id"},
             fhir_paths=[
                 "id",
@@ -285,7 +286,7 @@ class ExampleTests(unittest.TestCase):
             ]
         )
         assert len(observation_df) == 120 * 2
-        observation_df = self.search.trade_rows_for_dataframe_with_ref(
+        observation_df = self.search.trade_rows_for_dataframe(
             df=patient_df,
             resource_type="Observation",
             request_params={
@@ -293,6 +294,7 @@ class ExampleTests(unittest.TestCase):
                 "code": "http://loinc.org%7C55284-4",
                 "_sort": "_id",
             },
+            with_ref=True,
             df_constraints={"subject": "patient_id"},
             process_function=get_observation_info,
         )
@@ -403,10 +405,11 @@ class TestPirate(unittest.TestCase):
                 first_length = len(obs_df)
                 assert len(obs_df) > 0
 
-                obs_df = self.search.trade_rows_for_dataframe_with_ref(
+                obs_df = self.search.trade_rows_for_dataframe(
                     trade_df,
                     resource_type="Observation",
                     df_constraints={"code": "code"},
+                    with_ref=True,
                     request_params={"_lastUpdated": "ge2020"},
                     disable_multiprocessing=multi,
                 )
