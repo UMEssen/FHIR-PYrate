@@ -375,7 +375,7 @@ class Pirate:
         disable_multiprocessing: bool = False,
     ) -> pd.DataFrame:
         logger.warning(
-            "The trade_rows_for_dataframe_with_ref function is deprecated, please use"
+            "The trade_rows_for_dataframe_with_ref function is deprecated, please use "
             "trade_rows_for_dataframe(..., with_ref=True) instead."
         )
         return self.trade_rows_for_dataframe(
@@ -392,6 +392,29 @@ class Pirate:
             disable_multiprocessing=disable_multiprocessing,
         )
 
+    @staticmethod
+    def _copy_existing_columns(
+        df: pd.DataFrame,
+        input_params: Dict[str, str],
+        key_mapping: Dict[str, str],
+    ) -> None:
+        """
+        Copy the existing columns into the new DataFrame.
+
+        :param df: The DataFrame that was generated from the bundles
+        :param input_params: The input columns that should be added to the new DataFrame
+        :param key_mapping: A dictionary that can be used to change the name of the input columns
+        """
+        # Add the key from the input
+        for key, value in input_params.items():
+            if key_mapping[key] in df.columns:
+                logger.warning(
+                    f"A column with name {key_mapping[key]} already exists in the output"
+                    f"DataFrame, and the column {key} will not be copied."
+                )
+            else:
+                df[key_mapping[key]] = value
+
     def trade_rows_for_dataframe(
         self,
         df: pd.DataFrame,
@@ -404,6 +427,7 @@ class Pirate:
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
         with_ref: bool = False,
+        with_columns: List[Union[str, Tuple[str, str]]] = None,
         merge_on: str = None,
         read_from_cache: bool = False,
         disable_multiprocessing: bool = False,
@@ -439,6 +463,8 @@ class Pirate:
         assuming that there are that many
         :param with_ref: Whether the input columns of `df_constraints` should be added to the
         output DataFrame
+        :param with_columns: Whether additional columns from the source DataFrame should be
+        added to output DataFrame, as a list of column names from the source DataFrames
         :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
         to merge all the rows into one, example below
@@ -489,7 +515,7 @@ class Pirate:
                     f"overwritten."
                 )
                 process_function = self._set_up_fhirpath_function(fhir_paths)
-            if not with_ref:
+            if not with_ref and not with_columns:
                 df = self._bundles_to_dataframe(
                     bundles=self._trade_rows_for_bundles(
                         df=df,
@@ -516,15 +542,46 @@ class Pirate:
                     request_params=request_params,
                     df_constraints=adjusted_constraints,
                 )
+                # Reformat the with_columns attribute such that it becomes a list of tuples
+                # (new_name, current_name)
+                # The columns to be added are either as elements in the list
+                # [col1, col2, ...]
+                # or as second argument of a tuple
+                # [(renamed_col_1, col1), ...]
+                with_columns_adjusted = (
+                    [
+                        (col, col) if isinstance(col, str) else col
+                        for col in with_columns
+                    ]
+                    if with_columns is not None
+                    else []
+                )
+                # Create a dictionary to rename the columns
+                with_columns_rename = {
+                    col: col_rename for col_rename, col in with_columns_adjusted
+                }
+                # Also go through the df_constraints, in case they are not in the list for renaming
+                for _, list_of_constraints in adjusted_constraints.items():
+                    for _, value in list_of_constraints:
+                        if value not in with_columns_rename:
+                            with_columns_rename[value] = value
                 # Prepare the inputs that will end up in the final dataframe
                 input_params_per_sample = [
                     {
-                        # The name of the parameter will be the same as the column name
-                        # The value will be the same as the value in that column for that row
-                        value: row[df.columns.get_loc(value)]
-                        # Concatenate the given system identifier string with the desired identifier
-                        for _, list_of_constraints in adjusted_constraints.items()
-                        for _, value in list_of_constraints
+                        **{
+                            # The name of the parameter will be the same as the column name
+                            # The value will be the same as the value in that column for that row
+                            value: row[df.columns.get_loc(value)]
+                            # Concatenate the given system identifier string with the desired
+                            # identifier
+                            for _, list_of_constraints in adjusted_constraints.items()
+                            for _, value in list_of_constraints
+                        },
+                        # Add other columns from with_columns
+                        **{
+                            col: row[df.columns.get_loc(col)]
+                            for _, col in with_columns_adjusted
+                        },
                     }
                     for row in df.itertuples(index=False)
                 ]
@@ -562,9 +619,11 @@ class Pirate:
                         found_df = self._query_to_dataframe(self._bundle_fn)(
                             **param, **params_for_post
                         )
-                        # Add the key from the input
-                        for key, value in input_param.items():
-                            found_df[key] = value
+                        self._copy_existing_columns(
+                            df=found_df,
+                            input_params=input_param,
+                            key_mapping=with_columns_rename,
+                        )
                         found_dfs.append(found_df)
                 else:
                     pool = multiprocessing.Pool(self.num_processes)
@@ -588,8 +647,11 @@ class Pirate:
                     for async_result, input_param in results:
                         # Get the results and build the dataframes
                         found_df = async_result.get()
-                        for key, value in input_param.items():
-                            found_df[key] = value
+                        self._copy_existing_columns(
+                            df=found_df,
+                            input_params=input_param,
+                            key_mapping=with_columns_rename,
+                        )
                         found_dfs.append(found_df)
                     pool.close()
                     pool.join()
