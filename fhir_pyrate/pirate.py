@@ -415,6 +415,7 @@ class Pirate:
             else:
                 df[key_mapping[key]] = value
 
+
     def trade_rows_for_dataframe(
         self,
         df: pd.DataFrame,
