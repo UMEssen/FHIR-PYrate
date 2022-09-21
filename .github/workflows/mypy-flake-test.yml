@@ -47,8 +47,9 @@ jobs:
           poetry install -E all
       - name: Run MyPy
         run: |
-          poetry run mypy --install-types --non-interactive fhir_pyrate/
-          poetry run mypy --install-types --non-interactive tests/
+          poetry run mypy --install-types --non-interactive
+          poetry run mypy fhir_pyrate/
+          poetry run mypy tests/
       - name: Run Flake8
         run: |
           poetry run flake8 fhir_pyrate/
