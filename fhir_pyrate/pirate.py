@@ -542,40 +542,26 @@ class Pirate:
                         for _, col in with_columns_adjusted
                     },
                 }
-                # Also go through the df_constraints, in case they are not in the list for renaming
-                for _, list_of_constraints in adjusted_constraints.items():
-                    for _, value in list_of_constraints:
-                        if value not in with_columns_rename:
-                            with_columns_rename[value] = value
-                # Prepare the inputs that will end up in the final dataframe
-                input_params_per_sample = [
-                    {
-                        **{
-                            # The name of the parameter will be the same as the column name
-                            # The value will be the same as the value in that column for that row
-                            value: row[df.columns.get_loc(value)]
-                            # Concatenate the given system identifier string with the desired
-                            # identifier
-                            for _, list_of_constraints in adjusted_constraints.items()
-                            for _, value in list_of_constraints
-                        },
-                        # Add other columns from with_columns
-                        **{
-                            col: row[df.columns.get_loc(col)]
-                            for _, col in with_columns_adjusted
-                        },
-                    }
-                    for row in df.itertuples(index=False)
-                ]
-                # The parameters used for post-processing (bundles to dataframe)
-                params_for_post = {
-                    "process_function": process_function,
-                    "build_df_after_query": False,
-                    (
-                        "disable_post_multiprocessing"
-                        if disable_multiprocessing
-                        else "disable_multiprocessing"
-                    ): True,  # The multiprocessing already happens on the rows
+                for row in df.itertuples(index=False)
+            ]
+            # The parameters used for post-processing (bundles to dataframe)
+            params_for_post = {
+                "process_function": process_function,
+                "build_df_after_query": False,
+                (
+                    "disable_post_multiprocessing"
+                    if disable_multiprocessing
+                    else "disable_multiprocessing"
+                ): True,  # The multiprocessing already happens on the rows
+            }
+            # Add all the parameters needed by the steal_bundles function
+            params_per_sample = [
+                {
+                    "resource_type": resource_type,
+                    "request_params": req_sample,
+                    "num_pages": num_pages,
+                    "silence_tqdm": True,
+                    "read_from_cache": read_from_cache,
                 }
                 for req_sample in req_params_per_sample
             ]
