@@ -559,7 +559,7 @@ class Pirate:
                 for req_sample in req_params_per_sample
             ]
             found_dfs = []
-            tqdm_text = "Query & Build DF"
+            tqdm_text = f"Query & Build DF ({resource_type})"
             if disable_multiprocessing:
                 # If we don't want multiprocessing
                 for param, input_param in tqdm(
@@ -1023,7 +1023,9 @@ class Pirate:
 
         progress_bar = tqdm(
             disable=silence_tqdm,
-            desc="Query & Build DF" if tqdm_df_build else "Query",
+            desc=f"Query & Build DF ({resource_type})"
+            if tqdm_df_build
+            else f"Query ({resource_type})",
             total=bundle_total,
         )
         bundle_iter = 0
@@ -1291,9 +1293,9 @@ class Pirate:
             return self._run_multiquery(
                 func=func,
                 params=timespans,
-                tqdm_text="Query Timespans & Build DF"
+                tqdm_text=f"Query Timespans & Build DF ({resource_type})"
                 if tqdm_df_build
-                else "Query Timespans",
+                else f"Query Timespans ({resource_type})",
                 disable_multiprocess=disable_multiprocessing,
             )
 
@@ -1357,7 +1359,9 @@ class Pirate:
             return self._run_multiquery(
                 func=func,
                 params=request_params_per_sample,
-                tqdm_text="Query Rows & Build DF" if tqdm_df_build else "Query Rows",
+                tqdm_text=f"Query Rows & Build DF ({resource_type})"
+                if tqdm_df_build
+                else f"Query Rows ({resource_type})",
                 disable_multiprocess=disable_multiprocessing,
             )
 
