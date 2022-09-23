@@ -516,7 +516,7 @@ request. You can also simply open an issue with the tag "enhancement".
 
 This package was developed at the [Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/).
 
-- [gakusai](https://github.com/gakusai): initial idea, development, logo & figures
+- [goku1110](https://github.com/goku1110): initial idea, development, logo & figures
 - [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
 
 We would like to thank [razorx89](https://github.com/razorx89), [butterpear](https://github.com/butterpear), [vkyprmr](https://github.com/vkyprmr), [Wizzzard93](https://github.com/Wizzzard93) and [luckfamousa](https://github.com/luckfamousa) for their input, time and effort.
