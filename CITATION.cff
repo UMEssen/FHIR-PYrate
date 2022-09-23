@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 title: >-
-  FHIR-PYrate: FHIR-PYrate: A Data Science Friendly Python Package to Query FHIR Servers
+  FHIR-PYrate: A Data Science Friendly Python Package to Query FHIR Servers
 message: 'If you use FHIR-PYrate, please cite it as below.'
 type: software
 doi: 10.5281/zenodo.7025226
