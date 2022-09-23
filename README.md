@@ -148,8 +148,8 @@ from fhir_pyrate import Ahoy
 auth = Ahoy(
   username="your_username",
   auth_method="password",
-  auth_url=auth-url, # The URL for authentication
-  refresh_url=refresh-url, # The URL to refresh the authentication
+  auth_url="auth-url", # Your URL for authentication
+  refresh_url="refresh-url", # Your URL to refresh the authentication token (if available)
 )
 ```
 
@@ -175,7 +175,7 @@ auth = ...
 # Init Pirate
 search = Pirate(
     auth=auth,
-    base_url=fhir-url, # e.g. "http://hapi.fhir.org/baseDstu2"
+    base_url="fhir-url", # e.g. "http://hapi.fhir.org/baseDstu2"
     print_request_url=False, # If set to true, you will see all requests
 )
 ```
@@ -190,9 +190,7 @@ The Pirate functions do one of three things:
 3. They are wrapper that combine the functionalities of 1&2, or that set some particular parameters.
    * `steal_bundles_to_dataframe`: single process, executes `steal_bundles` and then runs `bundles_to_dataframe` on the result.
    * `sail_through_search_space_to_dataframe`: multiprocess, executes `sail_through_search_space` and then runs `bundles_to_dataframe` on the result.
-   * `trade_rows_for_dataframe`: multiprocess, executes `trade_rows_for_bundles` and then runs `bundles_to_dataframe` on the result.
-   * `trade_rows_for_dataframe_with_ref`: multiprocess, executes `steal_bundles` & `bundles_to_dataframe` for each row of the DataFrame, and
-creates new columns with the searched contraints.
+   * `trade_rows_for_dataframe`: multiprocess, executes `trade_rows_for_bundles` and then runs `bundles_to_dataframe` on the result, it is also possible to add columns from the original DataFrame to the result
 
 | Name                                    | Type | Multiprocessing | DF Input? |        Output        |
 |:----------------------------------------|:----:|:---------------:|:---------:|:--------------------:|
@@ -203,7 +201,6 @@ creates new columns with the searched contraints.
 | steal_bundles_to_dataframe              |  3   |       No        |    No     |      DataFrame       |
 | sail_through_search_space_to_dataframe  |  3   |       Yes       |    No     |      DataFrame       |
 | trade_rows_for_dataframe                |  3   |       Yes       |    Yes    |      DataFrame       |
-| trade_rows_for_dataframe_with_ref       |  3   |       Yes       |    Yes    |      DataFrame       |
 
 
 **BETA FEATURE**: It is also possible to cache the bundles using the `bundle_caching` parameter,
@@ -240,14 +237,16 @@ The `sail_through_search_space` function uses the multiprocessing module to spee
 The multiprocessing is done as follows:
 The time frame is divided into multiple time spans (as many as there are processes) and each smaller
 time frame is investigated simultaneously. This is why it is necessary to give a `date_init`
-and `date_end` param to the
-`sail_through_search_space` function. The default values are `date_init=2010-01-01` and today (the day
-when the query is performed) for `date_end`.
+and `date_end` param to the `sail_through_search_space` function.
+
+**Note** that if the `date_init` or `date_end` parameters are given as strings, they will be converted
+to `datetime.datetime` objects, so any non specified parameters (month, day or time) will be assumed
+according to the `datetime` workflow, and then converted to string according to the `time_format`
+specified in the `Pirate` constructor.
 
 A problematic aspect of the resources is that the date in which the resource was acquired is defined
 using different attributes. Also, some resources use a fixed date, other use a time period.
 You can specify the date attribute that you want to use with `time_attribute_name`.
-In the following table you can see which resource attributes we use of each of the resources.
 
 The resources where the date is based on a period (such as `Encounter` or `Procedure`) may cause
 duplicates in the multiprocessing because one entry may belong to multiple time spans that are
@@ -284,7 +283,7 @@ contains a bunch of different LOINC codes. Our `df_constraints` could look as fo
 df_constraints={"code": ("http://loinc.org", "loinc_code")}
 ```
 
-This function also uses multiprocessing, but differently from before, it will investigate the rows
+This function also uses multiprocessing, but differently from before, it will process the rows
 of the DataFrame in parallel.
 
 #### [`bundles_to_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
@@ -388,19 +387,16 @@ df = search.steal_bundles_to_dataframe(
 )
 ```
 
+#### [`***_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
+The `steal_bundles_to_dataframe`, `sail_through_search_space_to_dataframe` and `trade_rows_for_dataframe`
+are facade functions which retrieve the bundles and then run `bundles_to_dataframe`.
 
-In case you are not sure whether we have collected the same entry multiple times
-(i.e. when using multiprocessing in `sail_through_search_space` with a resource that uses a time
-period), please use the `drop_duplicates` function from pandas. A list of column names for which
-we do not want duplicates shall be passed as parameter and all duplicate rows will disappear.
-
-#### [`trade_rows_for_dataframe_with_ref`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
-This function has an output similar to `trade_rows_for_dataframe`, but with two main differences:
-1. Here, the bundles are retrieved and the DataFrame is computed straight away.
-In `trade_rows_for_dataframe` this can be obtained by setting `build_df_after_query` to False.
-2. If the `df_constraints` constraints are specified, they will end up in the final DataFrame.
-
+In `trade_rows_for_dataframe` you can also specify the `with_ref` parameter to also add the
+parameters specified in `df_constraints` as columns of the final DataFrame.
 You can find an example in [Example 3](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/3-patients-for-condition.ipynb).
+Additionally, you can specify the `with_columns` parameter, which can add any columns from the original
+DataFrame. The columns can be either specified as a list of columns `[col1, col2, ...]` or as a
+list of tuples `[(new_name_for_col1, col1), (new_name_for_col2, col2), ...]`
 
 ### [Miner](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/miner.py)
 
