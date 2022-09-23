@@ -77,7 +77,7 @@ or using GitHub (always the newest version).
 pip install git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
 
-These two commands only install the packages needed for `Pirate`. If you also want to use the `Miner` or the `DicomDownloader`, then you need to install them as extra dependencies with
+These two commands only install the packages needed for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
 ```bash
 pip install "fhir-pyrate[miner]" # only for miner
 pip install "fhir-pyrate[downloader]" # only for downloader
@@ -107,7 +107,7 @@ and then run
 poetry lock
 ```
 
-Also in poetry, the above only installs the packages for `Pirate`. If you also want to use the `Miner` or the `DicomDownloader`, then you need to install them as extra dependencies with
+Also in poetry, the above only installs the packages for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
 ```bash
 poetry add "fhir-pyrate[miner]" # only for miner
 poetry add "fhir-pyrate[downloader]" # only for downloader
@@ -242,7 +242,7 @@ and `date_end` param to the `sail_through_search_space` function.
 **Note** that if the `date_init` or `date_end` parameters are given as strings, they will be converted
 to `datetime.datetime` objects, so any non specified parameters (month, day or time) will be assumed
 according to the `datetime` workflow, and then converted to string according to the `time_format`
-specified in the `Pirate` constructor.
+specified in the **Pirate** constructor.
 
 A problematic aspect of the resources is that the date in which the resource was acquired is defined
 using different attributes. Also, some resources use a fixed date, other use a time period.
