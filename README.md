@@ -56,7 +56,7 @@ Table of Contents:
       * [sail_through_search_space](https://github.com/UMEssen/FHIR-PYrate/#sail_through_search_space)
       * [trade_rows_for_bundles](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_bundles)
       * [bundles_to_dataframe](https://github.com/UMEssen/FHIR-PYrate/#bundles_to_dataframe)
-      * [trade_rows_for_dataframe_with_ref](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_dataframe_with_ref)
+      * [***_dataframe](https://github.com/UMEssen/FHIR-PYrate/#***_dataframe)
    * [Miner](https://github.com/UMEssen/FHIR-PYrate/#miner)
    * [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/#dicomdownloader)
 * [Contributing](https://github.com/UMEssen/FHIR-PYrate/#contributing)
