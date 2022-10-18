@@ -451,7 +451,9 @@ class Pirate:
         :param with_ref: Whether the input columns of `df_constraints` should be added to the
         output DataFrame
         :param with_columns: Whether additional columns from the source DataFrame should be
-        added to output DataFrame, as a list of column names from the source DataFrames
+        added to output DataFrame. The columns from the source DataFrame can be either specified
+        as a list of columns `[col1, col2, ...]` or as a
+        list of tuples `[(new_name_for_col1, col1), (new_name_for_col2, col2), ...]`
         :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
         to merge all the rows into one, an example is given in `bundles_to_dataframe`
