@@ -107,9 +107,14 @@ class DicomDownloader:
     :param auth: Either an authenticated instance of the Ahoy class, or an authenticated
     requests.Session that can be used to communicate with the PACS to download the files
     :param dicom_web_url: The DicomWeb URL used to download the files
-    :param output_format: The options are [nifti, DICOM]:
+    :param output_format: The complete selection of formats is stored in the ACCEPTED_FORMATS
+    variable:
     DICOM will leave the files as they are;
-    nifti will convert them to .nii.gz
+    all the other formats will load the documents with SimpleITK and save them according to
+    that format
+    :param use_compression: This option will be passed to the SimpleITK parameter `use_compression`
+    for compression. Please check the SimpleITK documentation to find out which formats can be
+    compressed. If the output is DICOM, this flag will be ignored.
     :param hierarchical_storage: How the hierarchy of the downloaded files should look like.
     If 0, then all download folders will be in the same folder.
     If greater than 0, the download ID will be split to create multiple subdirectories.
@@ -126,11 +131,30 @@ class DicomDownloader:
     HTTP retrying.
     """
 
+    ACCEPTED_FORMATS = {
+        ".dcm",
+        ".nia",
+        ".nii",
+        ".nii.gz",
+        ".hdr",
+        ".img",
+        ".img.gz",
+        ".tif",
+        ".TIF",
+        ".tiff",
+        ".TIFF",
+        ".mha",
+        ".mhd",
+        ".nrrd",
+        ".nhdr",
+    }
+
     def __init__(
         self,
         auth: Optional[Union[requests.Session, Ahoy]],
         dicom_web_url: str,
-        output_format: str = "nifti",
+        output_format: str = ".nii.gz",
+        use_compression: bool = False,
         hierarchical_storage: int = 0,
         turn_off_checks: bool = False,
         always_download_in_study_folder: bool = False,
@@ -147,9 +171,8 @@ class DicomDownloader:
             self.session = requests.session()
         self.client = self._init_dicom_web_client()
         self.client.set_http_retry_params(retry=retry)
-        if output_format.lower() not in ["nifti", "dicom"]:
-            raise ValueError(f"The given format {output_format} is not supported.")
-        self._output_format = output_format.lower()
+        self.set_output_format(new_output_format=output_format)
+        self.use_compression = use_compression
         self.study_instance_uid_field = "study_instance_uid"
         self.series_instance_uid_field = "series_instance_uid"
         self.deid_study_instance_uid_field = "deidentified_study_instance_uid"
@@ -169,9 +192,14 @@ class DicomDownloader:
         :param new_output_format: The new output format
         :return: None
         """
-        if new_output_format.lower() not in ["nifti", "dicom"]:
+        if new_output_format.lower() == "nifti":
+            self._output_format = ".nii.gz"
+        elif new_output_format.lower() == "dicom":
+            self._output_format = ".dcm"
+        elif new_output_format in self.ACCEPTED_FORMATS:
+            self._output_format = new_output_format
+        else:
             raise ValueError(f"The given format {new_output_format} is not supported.")
-        self._output_format = new_output_format.lower()
 
     def __enter__(self) -> "DicomDownloader":
         return self
@@ -273,14 +301,16 @@ class DicomDownloader:
         recompute = (
             download_id not in existing_ids if existing_ids is not None else False
         )
-        file_format = ".nii.gz" if self._output_format == "nifti" else ".dcm"
         logger.info(f"{get_datetime()} Current download ID: {download_id}")
 
         series_download_dir = pathlib.Path(output_dir) / self.get_download_path(
             download_id
         )
         # Check if it exists already and skips
-        if len(list(series_download_dir.glob(f"*{file_format}"))) > 0 and not recompute:
+        if (
+            len(list(series_download_dir.glob(f"*{self._output_format}"))) > 0
+            and not recompute
+        ):
             logger.info(
                 f"Study {download_id} has been already downloaded in "
                 f"{series_download_dir}, skipping..."
@@ -348,10 +378,14 @@ class DicomDownloader:
                         raise RuntimeError("SimpleITK " + content)
                     # Create the final output dir
                     series_download_dir.mkdir(exist_ok=True, parents=True)
-                    if self._output_format == "nifti":
+                    if self._output_format != ".dcm":
                         # Write series to nifti
                         sitk.WriteImage(
-                            image, str(series_download_dir / (series + ".nii.gz"))
+                            image,
+                            str(
+                                series_download_dir / (series + self._output_format),
+                            ),
+                            useCompression=self.use_compression,
                         )
                     else:
                         # We just copy the dicoms
@@ -362,7 +396,7 @@ class DicomDownloader:
                             )
                 except Exception:
                     if self.turn_off_checks:
-                        if self._output_format == "nifti":
+                        if self._output_format != ".dcm":
                             logger.info(
                                 f"Problems occurred when converting {series} to NIFTI, "
                                 f"it will be stored as DICOM instead."
@@ -384,7 +418,7 @@ class DicomDownloader:
                         continue
 
                 # Store one DICOM to keep the file metadata
-                if save_metadata and self._output_format == "nifti":
+                if save_metadata and self._output_format != ".dcm":
                     shutil.copy2(
                         files[0],
                         series_download_dir / f"{series}_meta.dcm",
