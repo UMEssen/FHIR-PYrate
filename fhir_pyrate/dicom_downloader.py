@@ -119,8 +119,11 @@ class DicomDownloader:
     26/3a/1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd.
     :param turn_off_checks: The checks on the DICOM files will be turned off and whatever kind of
     DICOM was downloaded will be copied to the output folder.
+    :param always_download_in_study_folder: Whether the series should always be saved under their
+    study ID, even though a series ID has been specified. This ensures that series from the same
+    study will always end up in the same folder.
     :param retry: This flag will set the retry parameter of the DicomWebClient, which activates
-    HTTP retrying
+    HTTP retrying.
     """
 
     def __init__(
@@ -130,6 +133,7 @@ class DicomDownloader:
         output_format: str = "nifti",
         hierarchical_storage: int = 0,
         turn_off_checks: bool = False,
+        always_download_in_study_folder: bool = False,
         retry: bool = False,
     ):
         self.dicom_web_url = dicom_web_url
@@ -155,6 +159,7 @@ class DicomDownloader:
         self.error_type_field = "error"
         self.traceback_field = "traceback"
         self.turn_off_checks = turn_off_checks
+        self.always_download_in_study_folder = always_download_in_study_folder
         self.hierarchical_storage = hierarchical_storage
 
     def set_output_format(self, new_output_format: str) -> None:
@@ -197,16 +202,23 @@ class DicomDownloader:
         self.close()
 
     @staticmethod
-    def get_download_id(study_uid: str, series_uid: str = None) -> str:
+    def get_download_id(
+        study_uid: str,
+        series_uid: str = None,
+        always_download_in_study_folder: bool = False,
+    ) -> str:
         """
         Generate a download id given the study and (if available) the series ID.
 
         :param study_uid: The study ID to download
         :param series_uid: The series ID to download
+        :param always_download_in_study_folder: Whether the series should always be saved under their
+        study ID, even though a series ID has been specified. This ensures that series from the same
+        study will always end up in the same folder.
         :return: An encoded combination of study and series ID
         """
         key_string = study_uid
-        if series_uid is not None:
+        if series_uid is not None and not always_download_in_study_folder:
             key_string += "_" + series_uid
         return hashlib.sha256(key_string.encode()).hexdigest()
 
@@ -252,7 +264,11 @@ class DicomDownloader:
         downloaded_series_info: List[Dict[str, str]] = []
         error_series_info: List[Dict[str, str]] = []
         # Generate a hash of key/series which will be the ID of this download
-        download_id = self.get_download_id(study_uid=study_uid, series_uid=series_uid)
+        download_id = self.get_download_id(
+            study_uid=study_uid,
+            series_uid=series_uid,
+            always_download_in_study_folder=self.always_download_in_study_folder,
+        )
         # Recompute if the hash does not exist in existing IDs, in case existing IDs is given
         recompute = (
             download_id not in existing_ids if existing_ids is not None else False
@@ -418,6 +434,7 @@ class DicomDownloader:
             download_id = DicomDownloader.get_download_id(
                 study_uid=getattr(row, study_uid_col),
                 series_uid=getattr(row, series_uid_col),
+                always_download_in_study_folder=self.always_download_in_study_folder,
             )
             series_download_dir = output_dir / self.get_download_path(download_id)
             # If the files have not been downloaded or
