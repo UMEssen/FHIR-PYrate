@@ -280,7 +280,7 @@ class DicomDownloader:
             base_dict[self.series_instance_uid_field] = series_uid
 
         # Init the readers/writers
-        series_reader = sitk.ImageSeriesReader()
+        series_reader = sitk.ImageSeriesReader()  # type: ignore
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create the download dir
             current_tmp_dir = pathlib.Path(tmp_dir)
