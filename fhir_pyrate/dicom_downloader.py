@@ -326,7 +326,7 @@ class DicomDownloader:
             base_dict[self.series_instance_uid_field] = series_uid
 
         # Init the readers/writers
-        series_reader = sitk.ImageSeriesReader()
+        series_reader = sitk.ImageSeriesReader()  # type: ignore
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create the download dir
             current_tmp_dir = pathlib.Path(tmp_dir)
@@ -354,11 +354,11 @@ class DicomDownloader:
             progress_bar.close()
 
             # Get Series ID names from folder
-            series_uids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(current_tmp_dir))
+            series_uids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(current_tmp_dir))  # type: ignore
             logger.info(f"Study ID has {len(series_uids)} series.")
             for series in series_uids:
                 # Get the DICOMs corresponding to the series
-                files = series_reader.GetGDCMSeriesFileNames(
+                files = series_reader.GetGDCMSeriesFileNames(  # type: ignore
                     str(current_tmp_dir), series
                 )
                 current_dict = base_dict.copy()
@@ -370,8 +370,8 @@ class DicomDownloader:
                     with simpleitk_warning_file.open("w") as f, stdout_redirected(
                         f, stdout=sys.stderr
                     ):
-                        series_reader.SetFileNames(files)
-                        image = series_reader.Execute()
+                        series_reader.SetFileNames(files)  # type: ignore
+                        image = series_reader.Execute()  # type: ignore
                     with simpleitk_warning_file.open("r") as f:
                         content = f.read()
                     if "warning" in content.lower():
