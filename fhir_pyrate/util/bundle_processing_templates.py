@@ -16,10 +16,16 @@ def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> List[Dict]:
     :return: A dictionary containing the parsed information
     """
     records = []
-    for entry in bundle.entry or []:
+    if bundle.entry is not None:
+        resources = [entry.resource for entry in bundle.entry]
+    elif bundle.resourceType is not None:
+        resources = [bundle]
+    else:
+        resources = []
+    for resource in resources:
         base_dict: Dict[str, Any] = {}
         recurse_resource(
-            resource=entry.resource, base_dict=base_dict, field_name="", col_sep=col_sep
+            resource=resource, base_dict=base_dict, field_name="", col_sep=col_sep
         )
         records.append(base_dict)
     return records
@@ -79,8 +85,13 @@ def parse_fhir_path(
     :return: A dictionary containing the parsed information
     """
     records = []
-    for entry in bundle.entry or []:
-        resource = entry.resource
+    if bundle.entry is not None:
+        resources = [entry.resource for entry in bundle.entry]
+    elif bundle.resourceType is not None:
+        resources = [bundle]
+    else:
+        resources = []
+    for resource in resources:
         base_dict: Dict[str, Any] = {}
         for name, compiled_path in compiled_fhir_paths:
             result = compiled_path(resource=resource.to_dict())

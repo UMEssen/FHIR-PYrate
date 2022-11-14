@@ -125,13 +125,13 @@ class Pirate:
         :return: The number of entries for this bundle, either given by the total attribute or by
         counting the number of entries
         """
-        request_params_string = self._concat_request_params(request_params or {})
-        request_url = (
-            f"{self.base_url}{self.fhir_app_location}{resource_type}"
-            f"{'/' if 'history' in (request_params or {}) else '?'}{request_params_string}"
-        )
         return self._get_total_from_bundle(
-            bundle=self._get_response(request_url), count_entries=count_entries
+            bundle=self._get_response(
+                self._build_request_url(
+                    resource_type=resource_type, request_params=request_params or {}
+                )
+            ),
+            count_entries=count_entries,
         )
 
     def steal_bundles(
@@ -813,13 +813,21 @@ class Pirate:
         :param request_params: The parameters that should be used for the request
         :return: The concatenated string for the request
         """
-        if "history" in request_params:
-            history_param = (
-                request_params["history"]
-                if not isinstance(request_params["history"], List)
-                else next(iter(request_params["history"]))
+        if "history" in request_params or "_id" in request_params:
+            if "history" in request_params:
+                param = "history"
+            else:
+                param = "_id"
+            found_param = (
+                request_params[param]
+                if not isinstance(request_params[param], List)
+                else next(iter(request_params[param]))
             )
-            return f"{history_param}/_history"
+            assert isinstance(found_param, str)
+            if "history" in request_params:
+                return f"{found_param}/_history"
+            else:
+                return found_param
         params = [
             f"{k}={v}"
             for k, v in request_params.items()
@@ -997,6 +1005,15 @@ class Pirate:
                 return bundle.total
         return None
 
+    def _build_request_url(
+        self, resource_type: str, request_params: Dict[str, Any]
+    ) -> str:
+        request_params_string = self._concat_request_params(request_params)
+        return (
+            f"{self.base_url}{self.fhir_app_location}{resource_type}"
+            f"{'/' if ('history' in request_params or '_id' in request_params) else '?'}{request_params_string}"
+        )
+
     def _get_bundles(
         self,
         resource_type: str,
@@ -1035,10 +1052,8 @@ class Pirate:
         if num_pages == 0:
             return 0
         current_params = {} if request_params is None else request_params
-        request_params_string = self._concat_request_params(current_params)
         bundle = self._get_response(
-            f"{self.base_url}{self.fhir_app_location}{resource_type}"
-            f"{'/' if 'history' in (request_params or {}) else '?'}{request_params_string}"
+            self._build_request_url(resource_type, current_params)
         )
         bundle_total: Union[int, float] = num_pages
         total = self._get_total_from_bundle(bundle, count_entries=False)
@@ -1052,6 +1067,7 @@ class Pirate:
 
         if (
             "history" not in (request_params or {})
+            and "_id" not in (request_params or {})
             and bundle_total != math.inf
             and bundle_total > 1
             and not any(k == "_sort" for k, _ in current_params.items())
@@ -1129,10 +1145,11 @@ class Pirate:
                 self.bundle_cache_folder
                 / hashlib.sha256(
                     (
-                        f"{resource_type}"
-                        f"{'/' if 'history' in (request_params or {}) else '?'}"
-                        f"{self._concat_request_params(request_params or {})}"
-                        ".json"
+                        self._build_request_url(
+                            resource_type=resource_type,
+                            request_params=request_params or {},
+                        )
+                        + ".json"
                     ).encode()
                 ).hexdigest()
             )
