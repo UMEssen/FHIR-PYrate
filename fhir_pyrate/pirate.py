@@ -1008,6 +1008,13 @@ class Pirate:
     def _build_request_url(
         self, resource_type: str, request_params: Dict[str, Any]
     ) -> str:
+        """
+        Use the resource type and the request parameters to build the final request URL.
+
+        :param resource_type: The resource to call
+        :param request_params: The parameters for the request
+        :return: The URL for the request
+        """
         request_params_string = self._concat_request_params(request_params)
         return (
             f"{self.base_url}{self.fhir_app_location}{resource_type}"
