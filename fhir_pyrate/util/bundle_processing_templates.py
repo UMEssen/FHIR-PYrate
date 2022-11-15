@@ -16,10 +16,10 @@ def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> List[Dict]:
     :return: A dictionary containing the parsed information
     """
     records = []
-    for entry in bundle.entry or []:
+    for resource in get_resources_from_bundle(bundle):
         base_dict: Dict[str, Any] = {}
         recurse_resource(
-            resource=entry.resource, base_dict=base_dict, field_name="", col_sep=col_sep
+            resource=resource, base_dict=base_dict, field_name="", col_sep=col_sep
         )
         records.append(base_dict)
     return records
@@ -62,6 +62,21 @@ def recurse_resource(
         base_dict[field_name[1:]] = resource
 
 
+def get_resources_from_bundle(bundle: FHIRObj) -> List[FHIRObj]:
+    """
+    Helper function to retrieve the resources from the bundles
+
+    :param bundle: The bundle or resource returned by the FHIR request
+    :return: A list with the resources from the bundles
+    """
+    if bundle.resourceType == "Bundle":
+        return [entry.resource for entry in bundle.entry or []]
+    elif bundle.resourceType is not None:
+        return [bundle]
+    else:
+        return []
+
+
 def parse_fhir_path(
     bundle: FHIRObj, compiled_fhir_paths: List[Tuple[str, Callable]]
 ) -> List[Dict]:
@@ -70,7 +85,7 @@ def parse_fhir_path(
     for all possible attributes, which have been specified using a list of compiled FHIRPath
     expressions (https://hl7.org/fhirpath/).
 
-    :param bundle: The bundle returned by the FHIR request
+    :param bundle: The bundle or resource returned by the FHIR request
     :param compiled_fhir_paths: A list of tuples of the form (column_name, compiled_fhir_paths),
     where column_name is the name of the future column, and fhir_paths is a compiled function
     that will be used to build that column and that was compiled from a FHIR path (
@@ -79,8 +94,7 @@ def parse_fhir_path(
     :return: A dictionary containing the parsed information
     """
     records = []
-    for entry in bundle.entry or []:
-        resource = entry.resource
+    for resource in get_resources_from_bundle(bundle):
         base_dict: Dict[str, Any] = {}
         for name, compiled_path in compiled_fhir_paths:
             result = compiled_path(resource=resource.to_dict())
