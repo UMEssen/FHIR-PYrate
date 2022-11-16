@@ -514,7 +514,7 @@ request. You can also simply open an issue with the tag "enhancement".
 
 ## Authors and acknowledgment
 
-This package was developed at the [Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/).
+This package was developed by the [SHIP-AI group at the Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/).
 
 - [goku1110](https://github.com/goku1110): initial idea, development, logo & figures
 - [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
