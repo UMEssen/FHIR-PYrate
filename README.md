@@ -519,7 +519,7 @@ This package was developed by the [SHIP-AI group at the Institute for Artificial
 - [goku1110](https://github.com/goku1110): initial idea, development, logo & figures
 - [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
 
-We would like to thank [razorx89](https://github.com/razorx89), [butterpear](https://github.com/butterpear), [vkyprmr](https://github.com/vkyprmr), [Wizzzard93](https://github.com/Wizzzard93) and [luckfamousa](https://github.com/luckfamousa) for their input, time and effort.
+We would like to thank [razorx89](https://github.com/razorx89), [butterpear](https://github.com/butterpear), [vkyprmr](https://github.com/vkyprmr), [Wizzzard93](https://github.com/Wizzzard93), [karzideh](https://github.com/karzideh) and [luckfamousa](https://github.com/luckfamousa) for their input, time and effort.
 
 ## License
 This project is licenced under the [MIT Licence](LICENSE).
