@@ -978,8 +978,26 @@ class Pirate:
             if self._print_request_url:
                 tqdm.write(request_url)
             response.raise_for_status()
-            json_response = FHIRObj(**response.json())
-            return json_response
+            json_response = response.json()
+            # If it's a bundle return it
+            if json_response.get("resourceType") == "Bundle":
+                return FHIRObj(**json_response)
+            # Otherwise it's a read operation (are there other options?)
+            # and we should convert it to a bundle for the sake of consistency
+            else:
+                return FHIRObj(
+                    **{
+                        "resourceType": "Bundle",
+                        "type": "read",
+                        "total": 1,
+                        "entry": [
+                            {
+                                "full_url": request_url,
+                                "resource": json_response,
+                            }
+                        ],
+                    }
+                )
         except Exception:
             # Leave this to be able to quickly see the errors
             logger.error(traceback.format_exc())
