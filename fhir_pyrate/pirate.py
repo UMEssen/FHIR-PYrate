@@ -557,14 +557,14 @@ class Pirate:
                         always_return_dict=True,
                         **param,
                     )
-                    for resource_type, df in found_dfs:
+                    for resource_type, found_df in found_dfs.items():
                         final_dfs.setdefault(resource_type, [])
                         self._copy_existing_columns(
-                            df=df,
+                            df=found_df,
                             input_params=input_param,
                             key_mapping=with_columns_rename,
                         )
-                        final_dfs[resource_type].append(df)
+                        final_dfs[resource_type].append(found_df)
             else:
                 pool = multiprocessing.Pool(self.num_processes)
                 results = []
@@ -583,7 +583,7 @@ class Pirate:
                                     process_function=process_function,
                                     build_df_after_query=False,
                                     disable_multiprocessing=True,
-                                    always_return_dict=False,
+                                    always_return_dict=True,
                                 ),
                             ),
                             input_param,
@@ -592,14 +592,14 @@ class Pirate:
                 for async_result, input_param in results:
                     # Get the results and build the dataframes
                     found_dfs = async_result.get()
-                    for resource_type, df in found_dfs:
+                    for resource_type, found_df in found_dfs.items():
                         final_dfs.setdefault(resource_type, [])
                         self._copy_existing_columns(
-                            df=df,
+                            df=found_df,
                             input_params=input_param,
                             key_mapping=with_columns_rename,
                         )
-                        final_dfs[resource_type].append(df)
+                        final_dfs[resource_type].append(found_df)
                 pool.close()
                 pool.join()
             dfs = {
@@ -1006,14 +1006,12 @@ class Pirate:
         )
         bundle_total: Union[int, float] = num_pages
         total = self._get_total_from_bundle(bundle, count_entries=False)
-
         if bundle_total == -1:
             n_entries = self._get_total_from_bundle(bundle, count_entries=True)
             if total and n_entries:
                 bundle_total = math.ceil(total / n_entries)
             else:
                 bundle_total = math.inf
-
         if (
             "history" not in (request_params or {})
             and "_id" not in (request_params or {})
