@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import traceback
+import warnings
 from contextlib import contextmanager
 from types import TracebackType
 from typing import Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
@@ -456,7 +457,7 @@ class DicomDownloader:
         """
         output_dir = pathlib.Path(output_dir)
         if not output_dir.exists() or not len(list(output_dir.glob("*"))):
-            logger.warning(
+            warnings.warn(
                 "Cannot fix the mapping file if the output directory does not exist."
             )
             return None
@@ -551,7 +552,7 @@ class DicomDownloader:
             series_uid_col is None or series_uid_col not in df.columns
         ):
             download_full_study = True
-            logging.warning(
+            warnings.warn(
                 "download_full_study = False will only download a specified series but "
                 "have not provided a valid Series UID column of the DataFrame, "
                 "as a result the full study will be downloaded."
