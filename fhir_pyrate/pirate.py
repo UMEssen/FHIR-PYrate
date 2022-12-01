@@ -39,8 +39,10 @@ class Pirate:
     :param default_count: The default count of results per page used by the server
     :param cache_folder: Whether the requests should be stored for later use, and where
     :param cache_expiry_time: In case the cache is used, when should it expire
-    :param disable_multiprocessing: Whether to disable multiprocessing for the requests (multiple
-    requests are run at the same time) or for the dataframe build.
+    :param disable_multiprocessing_requests: Whether to disable multiprocessing for running the
+    requests with the FHIR server
+    :param disable_multiprocessing_build: Whether to disable multiprocessing when building the
+    DataFrame
     :param silence_fhirpath_warning: Whether the FHIR path warning regarding already existing
     expressions should be silenced
     :param optional_get_params: Optional parameters that will be passed to the session's get calls
@@ -371,6 +373,9 @@ class Pirate:
         num_pages: int = -1,
         merge_on: str = None,
     ) -> pd.DataFrame:
+        """
+        Deprecated, use trade_rows_for_dataframe(..., with_ref=True) instead.
+        """
         warnings.warn(
             "The trade_rows_for_dataframe_with_ref function is deprecated, please use "
             "trade_rows_for_dataframe(..., with_ref=True) instead."
