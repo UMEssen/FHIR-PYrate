@@ -199,9 +199,8 @@ class Pirate:
         num_pages: int = -1,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        merge_on: str = None,
         build_df_after_query: bool = False,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Executes a request, iterates through the result pages, and builds a DataFrame with their
         information. The DataFrames are either built after each
@@ -218,12 +217,11 @@ class Pirate:
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths
-        :param merge_on: Whether to merge the results on a certain row after computing. This is
-        useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
-        :return: A DataFrame containing the queried information
+        :return: A DataFrame per queried resource. In case only once resource is queried, then only
+        one dictionary is given back, otherwise a dictionary of (resourceType, DataFrame) is
+        returned.
         """
         return self._query_to_dataframe(self._get_bundles)(
             resource_type=resource_type,
@@ -232,9 +230,9 @@ class Pirate:
             silence_tqdm=False,
             process_function=process_function,
             fhir_paths=fhir_paths,
-            merge_on=merge_on,
             build_df_after_query=build_df_after_query,
             disable_multiprocessing_build=True,
+            always_return_dict=False,
         )
 
     def sail_through_search_space(
@@ -277,9 +275,8 @@ class Pirate:
         request_params: Dict[str, Any] = None,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        merge_on: str = None,
         build_df_after_query: bool = False,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Uses the multiprocessing module to speed up some queries. The time frame is
         divided into multiple time spans (as many as there are processes) and each smaller
@@ -300,12 +297,11 @@ class Pirate:
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths
-        :param merge_on: Whether to merge the results on a certain row after computing. This is
-        useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
-        :return: A DataFrame containing FHIR bundles with the queried information for all timespans
+        :return: A DataFrame per queried resource for all timestamps. In case only once resource
+        is queried, then only one dictionary is given back, otherwise a dictionary of
+        (resourceType, DataFrame) is returned.
         """
         return self._query_to_dataframe(self._sail_through_search_space)(
             resource_type=resource_type,
@@ -315,8 +311,8 @@ class Pirate:
             date_end=date_end,
             process_function=process_function,
             fhir_paths=fhir_paths,
-            merge_on=merge_on,
             build_df_after_query=build_df_after_query,
+            always_return_dict=False,
         )
 
     def trade_rows_for_bundles(
@@ -371,8 +367,7 @@ class Pirate:
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
-        merge_on: str = None,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Deprecated, use trade_rows_for_dataframe(..., with_ref=True) instead.
         """
@@ -389,7 +384,6 @@ class Pirate:
             request_params=request_params,
             num_pages=num_pages,
             with_ref=True,
-            merge_on=merge_on,
         )
 
     def trade_rows_for_dataframe(
@@ -405,9 +399,8 @@ class Pirate:
         num_pages: int = -1,
         with_ref: bool = False,
         with_columns: List[Union[str, Tuple[str, str]]] = None,
-        merge_on: str = None,
         build_df_after_query: bool = False,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Go through the rows of a DataFrame (with multiprocessing), run a query, retrieve
         bundles for each row and transform them into a DataFrame.
@@ -441,9 +434,6 @@ class Pirate:
         added to output DataFrame. The columns from the source DataFrame can be either specified
         as a list of columns `[col1, col2, ...]` or as a list of tuples
         `[(new_name_for_col1, col1), (new_name_for_col2, col2), ...]`
-        :param merge_on: Whether to merge the results on a certain row after computing. This is
-        useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param process_function: The transformation function going through the entries and
         storing the entries to save
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
@@ -452,8 +442,9 @@ class Pirate:
         functions for notes on how to use the FHIR paths
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
-        :return: A DataFrame containing FHIR bundles with the queried information for all rows
-        and if requested some columns containing the original constraints
+        :return: A DataFrame per queried resource which contains information about all rows.
+        In case only once resource is queried, then only one dictionary is given back, otherwise
+        a dictionary of (resourceType, DataFrame) is returned.
         """
         with logging_redirect_tqdm():
             if fhir_paths is not None:
@@ -473,9 +464,9 @@ class Pirate:
                         tqdm_df_build=not build_df_after_query,
                     ),
                     process_function=process_function,
-                    merge_on=merge_on,
                     build_df_after_query=build_df_after_query,
                     disable_multiprocessing=self.disable_multiprocessing_build,
+                    always_return_dict=False,
                 )
             if self.caching and self.num_processes > 1:
                 logger.info(
@@ -545,11 +536,8 @@ class Pirate:
                 }
                 for req_sample in req_params_per_sample
             ]
-            found_dfs = []
+            final_dfs: Dict[str, List[pd.DataFrame]] = {}
             tqdm_text = f"Query & Build DF ({resource_type})"
-            # TODO: Can the merge_on be run for each smaller DataFrame?
-            #  is there the possibility to have resources referring to the same thing in
-            #  different bundles?
             if (
                 self.disable_multiprocessing_requests
                 or self.disable_multiprocessing_build
@@ -561,18 +549,21 @@ class Pirate:
                     desc=tqdm_text,
                 ):
                     # Get the dataframe
-                    found_df = self._query_to_dataframe(self._get_bundles)(
+                    found_dfs = self._query_to_dataframe(self._get_bundles)(
                         process_function=process_function,
                         build_df_after_query=False,
                         disable_multiprocessing_build=True,
+                        always_return_dict=True,
                         **param,
                     )
-                    self._copy_existing_columns(
-                        df=found_df,
-                        input_params=input_param,
-                        key_mapping=with_columns_rename,
-                    )
-                    found_dfs.append(found_df)
+                    for resource_type, df in found_dfs:
+                        final_dfs.setdefault(resource_type, [])
+                        self._copy_existing_columns(
+                            df=df,
+                            input_params=input_param,
+                            key_mapping=with_columns_rename,
+                        )
+                        final_dfs[resource_type].append(df)
             else:
                 pool = multiprocessing.Pool(self.num_processes)
                 results = []
@@ -591,6 +582,7 @@ class Pirate:
                                     process_function=process_function,
                                     build_df_after_query=False,
                                     disable_multiprocessing=True,
+                                    always_return_dict=False,
                                 ),
                             ),
                             input_param,
@@ -598,29 +590,29 @@ class Pirate:
                     )
                 for async_result, input_param in results:
                     # Get the results and build the dataframes
-                    found_df = async_result.get()
-                    self._copy_existing_columns(
-                        df=found_df,
-                        input_params=input_param,
-                        key_mapping=with_columns_rename,
-                    )
-                    found_dfs.append(found_df)
+                    found_dfs = async_result.get()
+                    for resource_type, df in found_dfs:
+                        final_dfs.setdefault(resource_type, [])
+                        self._copy_existing_columns(
+                            df=df,
+                            input_params=input_param,
+                            key_mapping=with_columns_rename,
+                        )
+                        final_dfs[resource_type].append(df)
                 pool.close()
                 pool.join()
-            df = pd.concat(found_dfs, ignore_index=True)
-            return (
-                df
-                if merge_on is None or len(df) == 0
-                else self.merge_on_col(df, merge_on)
-            )
+            dfs = {
+                resource_type: pd.concat(final_dfs[resource_type], ignore_index=True)
+                for resource_type in final_dfs
+            }
+            return list(dfs.values())[0] if len(dfs) == 1 else dfs
 
     def bundles_to_dataframe(
         self,
         bundles: Union[List[FHIRObj], Generator[FHIRObj, None, int]],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        merge_on: str = None,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Convert a bundle into a DataFrame using either the `flatten_data` function (default),
         FHIR paths or a custom processing function. For the case of `flatten_data` and the FHIR
@@ -633,10 +625,9 @@ class Pirate:
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path).
-        :param merge_on: Whether to merge the results on a certain row after computing. This is
-        useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one, example below
-        :return: A pandas DataFrame containing the queried information
+        :return: A DataFrame per queried resource. In case only once resource is queried, then only
+        one dictionary is given back, otherwise a dictionary of (resourceType, DataFrame) is
+        returned.
         **NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as
         modulus (`mod`) or integer division (`div`), and this may be problematic if there are
         fields of the resource that use these terms as attributes.
@@ -672,31 +663,6 @@ class Pirate:
             # ],
             num_pages=1,
         )
-        ```
-
-        The following example will initially return one row for each entry, but using
-        `group_row="patient_id"` we choose a column to run the merge on. This will merge the
-        columns that contain values that for the others are empty, having then one row representing
-        one patient.
-        ```
-        df = search.trade_rows_for_dataframe(
-            resource_type="Patient",
-            request_params={
-                "_sort": "_id",
-                "_count": 10,
-                "birthdate": "ge1990",
-                "_revinclude": "Condition:subject",
-            },
-            fhir_paths=[
-                ("patient_id", "Patient.id"),
-                ("patient_id", "Condition.subject.reference.replace('Patient/', '')"),
-                "Patient.gender",
-                "Condition.code.coding.code",
-            ],
-            num_pages=1,
-            merge_on="patient_id"
-        )
-        ```
         """
         with logging_redirect_tqdm():
             if fhir_paths is not None:
@@ -708,33 +674,10 @@ class Pirate:
             return self._bundles_to_dataframe(
                 bundles=bundles,
                 process_function=process_function,
-                merge_on=merge_on,
                 build_df_after_query=True,
                 disable_multiprocessing=self.disable_multiprocessing_build,
+                always_return_dict=False,
             )
-
-    @staticmethod
-    def merge_on_col(df: pd.DataFrame, merge_on: str) -> pd.DataFrame:
-        """
-        Merges rows from different resources on a given attribute.
-        :param df: The DataFrame where the merge should be applied
-        :param merge_on: Whether to merge the results on a certain row after computing. This is
-        useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one
-        :return: A DataFrame where the rows having the same `merge_on` attribute are merged.
-        """
-        # TODO: Could probably be done more efficiently?
-        new_df = df[merge_on]
-        for col in df.columns:
-            if col == merge_on:
-                continue
-            new_df = pd.merge(
-                left=new_df,
-                right=df.loc[~df[col].isna(), [merge_on, col]],
-                how="outer",
-            )
-        new_df = new_df.loc[new_df.astype(str).drop_duplicates().index]
-        return new_df.reset_index(drop=True)
 
     @staticmethod
     def smash_rows(
@@ -1375,10 +1318,10 @@ class Pirate:
         self,
         bundles: Union[List[FHIRObj], Generator[FHIRObj, None, int]],
         process_function: Callable[[FHIRObj], Any] = flatten_data,
-        merge_on: str = None,
         build_df_after_query: bool = False,
         disable_multiprocessing: bool = False,
-    ) -> pd.DataFrame:
+        always_return_dict: bool = False,
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Convert a bundle into a DataFrame using either the `flatten_data` function (default),
         FHIR paths or a custom processing function. For the case of `flatten_data` and the FHIR
@@ -1388,42 +1331,51 @@ class Pirate:
         :param bundles: The bundles to transform
         :param process_function: The transformation function going through the entries and
         storing the entries to save
-        :param merge_on: Whether to merge the results on a certain row after computing. This is
-        useful when using includes, if you store the IDs on the same column you can use that column
-        to merge all the rows into one, an example is given in `bundles_to_dataframe`
         :param build_df_after_query: Whether the DataFrame should be built after all bundles have
         been collected, or whether the bundles should be transformed just after retrieving
         :param disable_multiprocessing: Whether the bundles should be processed sequentially
-        :return: A pandas DataFrame containing the queried information
+        :return: A DataFrame per queried resource. In case only once resource is queried, then only
+        one dictionary is given back, otherwise a dictionary of (resourceType, DataFrame) is
+        returned.
         """
         if disable_multiprocessing:
-            results = [item for bundle in bundles for item in process_function(bundle)]
+            results = {
+                resource_type: records
+                for bundle in bundles
+                for resource_type, records in process_function(bundle).items()
+            }
         else:
             # TODO: It could be that this never makes sense
             pool = multiprocessing.Pool(self.num_processes)
             if build_df_after_query or isinstance(bundles, List):
                 bundles = list(bundles)
-                results = [
-                    item
+                results = {
+                    resource_type: records
                     for sublist in tqdm(
                         pool.imap(process_function, bundles),
                         total=len(bundles),
                         desc="Build DF",
                     )
-                    for item in sublist
-                ]
+                    for resource_type, records in sublist.items()
+                }
             else:
-                results = [
-                    item
+                results = {
+                    resource_type: records
                     for sublist in pool.imap(process_function, bundles)
-                    for item in sublist
-                ]
+                    for resource_type, records in sublist.items()
+                }
             pool.close()
             pool.join()
-        df = pd.DataFrame(results)
-        return (
-            df if merge_on is None or len(df) == 0 else self.merge_on_col(df, merge_on)
-        )
+        dfs = {
+            resource_type: pd.DataFrame(results[resource_type]).dropna(
+                axis=1, how="all"
+            )
+            for resource_type in results
+        }
+        if always_return_dict:
+            return dfs
+        else:
+            return list(dfs.values())[0] if len(dfs) == 1 else dfs
 
     def _query_to_dataframe(
         self,
@@ -1441,12 +1393,12 @@ class Pirate:
         def wrap(
             process_function: Callable[[FHIRObj], Any] = flatten_data,
             fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-            merge_on: str = None,
             build_df_after_query: bool = False,
             disable_multiprocessing_build: bool = False,
+            always_return_dict: bool = False,
             *args: Any,
             **kwargs: Any,
-        ) -> pd.DataFrame:
+        ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
             with logging_redirect_tqdm():
                 if fhir_paths is not None:
                     logger.info(
@@ -1459,9 +1411,9 @@ class Pirate:
                         *args, **kwargs, tqdm_df_build=not build_df_after_query
                     ),
                     process_function=process_function,
-                    merge_on=merge_on,
                     build_df_after_query=build_df_after_query,
                     disable_multiprocessing=disable_multiprocessing_build,
+                    always_return_dict=always_return_dict,
                 )
 
         return wrap

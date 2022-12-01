@@ -7,7 +7,7 @@ from fhir_pyrate.util import FHIRObj
 logger = logging.getLogger(__name__)
 
 
-def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> List[Dict]:
+def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> Dict[str, List[Dict]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes
@@ -16,14 +16,15 @@ def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> List[Dict]:
     :param col_sep: The separator to use to generate the column names for the DataFrame
     :return: A dictionary containing the parsed information
     """
-    records = []
+    records: Dict[str, List[Dict[str, Any]]] = {}
     for entry in bundle.entry or []:
         resource = entry.resource
+        records.setdefault(resource.resourceType, [])
         base_dict: Dict[str, Any] = {}
         recurse_resource(
             resource=resource, base_dict=base_dict, field_name="", col_sep=col_sep
         )
-        records.append(base_dict)
+        records[resource.resourceType].append(base_dict)
     return records
 
 
@@ -66,7 +67,7 @@ def recurse_resource(
 
 def parse_fhir_path(
     bundle: FHIRObj, compiled_fhir_paths: List[Tuple[str, Callable]]
-) -> List[Dict]:
+) -> Dict[str, List[Dict]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes, which have been specified using a list of compiled FHIRPath
@@ -80,9 +81,10 @@ def parse_fhir_path(
     functions for notes on how to use the FHIR paths.
     :return: A dictionary containing the parsed information
     """
-    records = []
+    records: Dict[str, List[Dict[str, Any]]] = {}
     for entry in bundle.entry or []:
         resource = entry.resource
+        records.setdefault(resource.resourceType, [])
         base_dict: Dict[str, Any] = {}
         for name, compiled_path in compiled_fhir_paths:
             result = compiled_path(resource=resource.to_dict())
@@ -98,5 +100,5 @@ def parse_fhir_path(
                     base_dict[name] = None
                 elif len(base_dict[name]) == 1:
                     base_dict[name] = next(iter(base_dict[name]))
-        records.append(base_dict)
+        records[resource.resourceType].append(base_dict)
     return records
