@@ -24,7 +24,9 @@ def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> Dict[str, List[Dict]]:
         recurse_resource(
             resource=resource, base_dict=base_dict, field_name="", col_sep=col_sep
         )
-        records[resource.resourceType].append(base_dict)
+        records[resource.resourceType].append(
+            {k: v for k, v in base_dict.items() if v is not None}
+        )
     return records
 
 
@@ -100,5 +102,7 @@ def parse_fhir_path(
                     base_dict[name] = None
                 elif len(base_dict[name]) == 1:
                     base_dict[name] = next(iter(base_dict[name]))
-        records[resource.resourceType].append(base_dict)
+        records[resource.resourceType].append(
+            {k: v for k, v in base_dict.items() if v is not None}
+        )
     return records
