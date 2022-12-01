@@ -101,6 +101,7 @@ class Pirate:
         self.disable_multiprocessing_build = disable_multiprocessing_build
         self.caching = False
         if cache_folder is not None:
+            # TODO: Change this to work with context managers
             session = CachedSession(
                 str(Path(cache_folder) / "fhir_pyrate"),
                 cache_control=True,
@@ -1170,6 +1171,7 @@ class Pirate:
         else:
             pool = multiprocessing.Pool(processes=self.num_processes)
             for bundles_per_query in tqdm(
+                # TODO: Can this be done without partial?
                 pool.imap(partial(self._generator_to_list, func), query_params),
                 total=len(query_params),
                 desc=tqdm_text,
