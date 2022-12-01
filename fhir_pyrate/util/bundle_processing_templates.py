@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Any, Callable, Dict, List, Tuple
 
 from fhir_pyrate.util import FHIRObj
@@ -99,7 +100,7 @@ def parse_fhir_path(
         for name, compiled_path in compiled_fhir_paths:
             result = compiled_path(resource=resource.to_dict())
             if name in base_dict and base_dict[name] is not None and len(result) > 0:
-                logger.warning(
+                warnings.warn(
                     f"The field {name} has already been filled with {base_dict[name]}, "
                     f"so it will not be overwritten."
                 )

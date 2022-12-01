@@ -3,6 +3,7 @@ import multiprocessing
 import re
 import subprocess
 import traceback
+import warnings
 from functools import partial
 from typing import Callable, List, Optional, Union
 
@@ -43,7 +44,7 @@ class Miner:
         except IOError:
             # NOTE: Run python -m spacy download {nlp_lib} in your docker file
             # if you are using docker
-            logger.warning(
+            warnings.warn(
                 "If you are trying to install the spacy library within docker, "
                 "this will probably not work, because it needs access to your home "
                 "directory. Please run python -m spacy download {nlp_lib} in your "

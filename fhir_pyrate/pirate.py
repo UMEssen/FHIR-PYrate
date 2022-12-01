@@ -4,6 +4,7 @@ import math
 import multiprocessing
 import re
 import traceback
+import warnings
 from functools import partial
 from pathlib import Path
 from types import TracebackType
@@ -355,6 +356,35 @@ class Pirate:
             request_params=request_params,
             num_pages=num_pages,
             tqdm_df_build=False,
+        )
+
+    def trade_rows_for_dataframe_with_ref(
+        self,
+        df: pd.DataFrame,
+        resource_type: str,
+        df_constraints: Dict[
+            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
+        ],
+        process_function: Callable[[FHIRObj], Any] = flatten_data,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        request_params: Dict[str, Any] = None,
+        num_pages: int = -1,
+        merge_on: str = None,
+    ) -> pd.DataFrame:
+        warnings.warn(
+            "The trade_rows_for_dataframe_with_ref function is deprecated, please use "
+            "trade_rows_for_dataframe(..., with_ref=True) instead."
+        )
+        return self.trade_rows_for_dataframe(
+            df=df,
+            resource_type=resource_type,
+            df_constraints=df_constraints,
+            process_function=process_function,
+            fhir_paths=fhir_paths,
+            request_params=request_params,
+            num_pages=num_pages,
+            with_ref=True,
+            merge_on=merge_on,
         )
 
     def trade_rows_for_dataframe(
@@ -1024,7 +1054,7 @@ class Pirate:
             and bundle_total > 1
             and not any(k == "_sort" for k, _ in current_params.items())
         ):
-            logger.warning(
+            warnings.warn(
                 f"We detected multiple pages (approximately {bundle_total} pages) but "
                 f"no sorting method has been defined, which may yield incorrect results. "
                 f"We will set the sorting parameter to _id."
@@ -1161,7 +1191,7 @@ class Pirate:
         # If they are, remove them and issue a warning
         with logging_redirect_tqdm():
             if len(search_division_params) > 0:
-                logger.warning(
+                warnings.warn(
                     f"Detected use of parameter {time_attribute_name} "
                     f"in the request parameters. Please use the date_init (inclusive) and "
                     f"date_end (exclusive) parameters instead."
@@ -1271,7 +1301,7 @@ class Pirate:
         # Add the key from the input
         for key, value in input_params.items():
             if key_mapping[key] in df.columns:
-                logger.warning(
+                warnings.warn(
                     f"A column with name {key_mapping[key]} already exists in the output"
                     f"DataFrame, and the column {key} will not be copied."
                 )
@@ -1301,7 +1331,7 @@ class Pirate:
                         re.search(pattern=rf"{token}[\.\[]|[\.\]]{token}$", string=path)
                         is not None
                     ):
-                        logger.warning(
+                        warnings.warn(
                             f"You are using the term {token} in of your FHIR path {path}. "
                             f"Please keep in mind that this token can be used a function according "
                             f"to the FHIRPath specification (https://hl7.org/fhirpath/), which "
