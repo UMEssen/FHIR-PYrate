@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import logging
 import math
 import multiprocessing
@@ -14,6 +15,7 @@ import fhirpathpy
 import pandas as pd
 import requests
 from dateutil.parser import parse
+from requests.adapters import HTTPAdapter, Retry
 from requests_cache import CachedSession
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -23,6 +25,18 @@ from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
 
 logger = logging.getLogger(__name__)
+
+
+def create_key(request: requests.PreparedRequest, **kwargs: Any) -> str:
+    """
+    Creates a unique key for each request URL.
+
+    :param request: The request to create a key for
+    :param kwargs: Unused, needed for compatibility with the library
+    :return: A string which is a hash of the request
+    """
+    assert isinstance(request.url, str)
+    return hashlib.sha256(request.url.encode()).hexdigest()
 
 
 class Pirate:
@@ -39,6 +53,17 @@ class Pirate:
     :param default_count: The default count of results per page used by the server
     :param cache_folder: Whether the requests should be stored for later use, and where
     :param cache_expiry_time: In case the cache is used, when should it expire
+    :param retry_requests: You can specify a requests.adapter.Retry instance to retry the requests
+    that are failing, an example could be
+    retry_requests=Retry(
+        total=3, # Retries for a total of three times
+        backoff_factor=0.5, # A backoff factor to apply between attempts, such that the requests
+        # are not run directly one after the other
+        status_forcelist=[500, 502, 503, 504], # HTTP status codes that we should force a retry on
+        allowed_methods=["GET"] # Set of uppercased HTTP method verbs that we should retry on
+    )
+    Complete set of parameters:
+    https://urllib3.readthedocs.io/en/stable/reference/urllib3.util.html
     :param disable_multiprocessing_requests: Whether to disable multiprocessing for running the
     requests with the FHIR server
     :param disable_multiprocessing_build: Whether to disable multiprocessing when building the
@@ -68,6 +93,7 @@ class Pirate:
         default_count: int = None,
         cache_folder: Union[str, Path] = None,
         cache_expiry_time: Union[datetime.datetime, int] = -1,  # -1 = does not expire
+        retry_requests: Retry = None,
         disable_multiprocessing_requests: bool = False,
         disable_multiprocessing_build: bool = False,
         silence_fhirpath_warning: bool = False,
@@ -104,7 +130,7 @@ class Pirate:
             # TODO: Change this to work with context managers
             session = CachedSession(
                 str(Path(cache_folder) / "fhir_pyrate"),
-                cache_control=True,
+                # cache_control=False,
                 # Use Cache-Control response headers for expiration, if available
                 expire_after=cache_expiry_time,  # Otherwise expire responses after one day
                 allowable_codes=[
@@ -113,11 +139,12 @@ class Pirate:
                 ],  # Cache 400 responses as a solemn reminder of your failures
                 allowable_methods=["GET"],  # Cache whatever HTTP methods you want
                 ignored_parameters=["api_key"],
-                # Don't match this request param, and redact if from the cache
+                # # Don't match this request param, and redact if from the cache
                 match_headers=[
                     "Accept-Language"
                 ],  # Cache a different response per language
                 stale_if_error=True,  # In case of request errors, use stale cache data if possible
+                key_fn=create_key,
             )
             session.auth = self.session.auth
             self.session = session
@@ -130,6 +157,10 @@ class Pirate:
             self.num_processes = 1
         else:
             self.num_processes = num_processes
+
+        if retry_requests is not None:
+            self.session.mount(self.base_url, HTTPAdapter(max_retries=retry_requests))
+
         self.optional_get_params = (
             optional_get_params if optional_get_params is not None else {}
         )
@@ -1048,7 +1079,7 @@ class Pirate:
                 (link.url for link in bundle.link or [] if link.relation == "next"),
                 None,
             )
-            if next_link_url is None or bundle_iter >= bundle_total:
+            if next_link_url is None or (0 < num_pages <= bundle_iter):
                 break
             else:
                 # Re-assign bundle and start new iteration
