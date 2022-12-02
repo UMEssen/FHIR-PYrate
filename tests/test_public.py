@@ -50,11 +50,11 @@ def decode_text(text: str) -> str:
     return str(div.text)
 
 
-def get_diagnostic_text(bundle: FHIRObj) -> List[Dict]:
-    records = []
+def get_diagnostic_text(bundle: FHIRObj) -> Dict[str, List[Dict]]:
+    records: Dict[str, List[Dict]] = {"DiagnosticReport": []}
     for entry in bundle.entry or []:
         resource = entry.resource
-        records.append(
+        records["DiagnosticReport"].append(
             {
                 "fhir_diagnostic_report_id": resource.id,
                 "report_status": resource.text.status
@@ -66,8 +66,8 @@ def get_diagnostic_text(bundle: FHIRObj) -> List[Dict]:
     return records
 
 
-def get_observation_info(bundle: FHIRObj) -> List[Dict]:
-    records = []
+def get_observation_info(bundle: FHIRObj) -> Dict[str, List[Dict]]:
+    records: Dict[str, List[Dict]] = {"Observation": []}
     for entry in bundle.entry or []:
         resource = entry.resource
         # Store the ID
@@ -82,7 +82,7 @@ def get_observation_info(bundle: FHIRObj) -> List[Dict]:
                 # If the component is a valueQuantity, get the value
                 base_dict[resource_name] = component.valueQuantity.value
                 base_dict[resource_name + " Unit"] = component.valueQuantity.unit
-        records.append(base_dict)
+        records["Observation"].append(base_dict)
     return records
 
 
@@ -177,6 +177,7 @@ class GeneralTests(unittest.TestCase):
                                 ("patient", f"{patient_ref}.reference"),
                             ],
                         )
+                    assert isinstance(condition_df, pd.DataFrame)
                     condition_df.dropna(axis=0, inplace=True, how="any")
                     assert len(condition_df) > 0
                     diagnostic_df = search.trade_rows_for_dataframe(
@@ -190,6 +191,7 @@ class GeneralTests(unittest.TestCase):
                         },
                         process_function=get_diagnostic_text,
                     )
+                    assert isinstance(diagnostic_df, pd.DataFrame)
                     if len(diagnostic_df) > 0:
                         diagnostic_df.dropna(
                             subset=["report_text"],
@@ -241,6 +243,7 @@ class ExampleTests(unittest.TestCase):
                 ("patient", "subject.reference.replace('Patient/', ''"),
             ],
         )
+        assert isinstance(observation_values, pd.DataFrame)
         assert len(observation_values) == 1
         assert (
             observation_values.iloc[0, 2] == 6.079781499882176
@@ -280,7 +283,9 @@ class ExampleTests(unittest.TestCase):
                 ("value", "component.valueQuantity.value"),
                 ("unit", "component.valueQuantity.unit"),
             ],
-        ).explode(
+        )
+        assert isinstance(observation_df, pd.DataFrame)
+        observation_df = observation_df.explode(
             [
                 "test",
                 "value",
@@ -359,10 +364,12 @@ class TestPirate(unittest.TestCase):
                 build_df_after_query=False,
             )
             obs_df_1 = search.trade_rows_for_dataframe(**params)
+            assert isinstance(obs_df_1, pd.DataFrame)
             time_1 = time.time() - init
             print("First run, caching", time_1, obs_df_1.shape)
             init = time.time()
             obs_df_2 = search.trade_rows_for_dataframe(**params)
+            assert isinstance(obs_df_2, pd.DataFrame)
             time_2 = time.time() - init
             print("Second run, retrieve", time_2, obs_df_2.shape)
             assert time_2 < time_1
@@ -517,6 +524,7 @@ class ContraintsTest(unittest.TestCase):
         self.search.close()
 
     def testRefDiagnosticSubject(self) -> None:
+        assert isinstance(self.condition_df, pd.DataFrame)
         condition_df_pat = self.condition_df.loc[
             ~self.condition_df["patient_id"].isna()
         ]
@@ -531,6 +539,7 @@ class ContraintsTest(unittest.TestCase):
         assert len(diagnostic_df) > 0
 
     def testRefPatientSubject(self) -> None:
+        assert isinstance(self.condition_df, pd.DataFrame)
         condition_df_pat = self.condition_df.loc[
             ~self.condition_df["patient_id"].isna()
         ]
