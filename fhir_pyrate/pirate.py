@@ -1370,33 +1370,32 @@ class Pirate:
         returned.
         """
         if disable_multiprocessing:
-            results = {
-                resource_type: records
-                for bundle in bundles
-                for resource_type, records in process_function(bundle).items()
-            }
+            processed_bundles = [process_function(bundle) for bundle in bundles]
         else:
             # TODO: It could be that this never makes sense
             pool = multiprocessing.Pool(self.num_processes)
             if build_df_after_query or isinstance(bundles, List):
                 bundles = list(bundles)
-                results = {
-                    resource_type: records
-                    for sublist in tqdm(
+                processed_bundles = [
+                    bundle_output
+                    for bundle_output in tqdm(
                         pool.imap(process_function, bundles),
                         total=len(bundles),
                         desc="Build DF",
                     )
-                    for resource_type, records in sublist.items()
-                }
+                ]
             else:
-                results = {
-                    resource_type: records
-                    for sublist in pool.imap(process_function, bundles)
-                    for resource_type, records in sublist.items()
-                }
+                processed_bundles = [
+                    bundle_output
+                    for bundle_output in pool.imap(process_function, bundles)
+                ]
             pool.close()
             pool.join()
+        results: Dict[str, List[Dict[str, Any]]] = {}
+        for bundle_output in processed_bundles:
+            for resource_type, records in bundle_output.items():
+                results.setdefault(resource_type, [])
+                results[resource_type] += records
         dfs = {
             resource_type: pd.DataFrame(results[resource_type]).dropna(
                 axis=1, how="all"
