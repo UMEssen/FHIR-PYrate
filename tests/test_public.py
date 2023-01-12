@@ -1,6 +1,8 @@
 import logging
 import os
 import re
+import tempfile
+import time
 import unittest
 from typing import Dict, List
 
@@ -206,13 +208,13 @@ class GeneralTests(unittest.TestCase):
 
 class ExampleTests(unittest.TestCase):
     def setUp(self) -> None:
+        super().setUp()
         self.search = Pirate(
             auth=None,
             base_url="http://hapi.fhir.org/baseDstu2",
             print_request_url=False,
             num_processes=1,
         )
-        super().setUp()
 
     def tearDown(self) -> None:
         self.search.close()
@@ -335,110 +337,167 @@ class ExampleTests(unittest.TestCase):
 
 
 class TestPirate(unittest.TestCase):
-    def setUp(self) -> None:
-        self.search = Pirate(
-            auth=None,
-            base_url="http://hapi.fhir.org/baseDstu2",
-            print_request_url=False,
-            num_processes=3,
-        )
-        super().setUp()
-
-    def tearDown(self) -> None:
-        self.search.close()
+    def testCaching(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            search = Pirate(
+                auth=None,
+                base_url="http://hapi.fhir.org/baseDstu2",
+                print_request_url=False,
+                num_processes=3,
+                cache_folder=tmp_dir,
+                disable_multiprocessing_requests=False,
+                disable_multiprocessing_build=False,
+            )
+            trade_df = pd.DataFrame(["18262-6", "2571-8"], columns=["code"])
+            init = time.time()
+            params = dict(
+                df=trade_df,
+                resource_type="Observation",
+                df_constraints={"code": "code"},
+                request_params={"_lastUpdated": "ge2018"},
+                with_ref=False,  # TODO: It seems like this is much faster
+                build_df_after_query=False,
+            )
+            obs_df_1 = search.trade_rows_for_dataframe(**params)
+            time_1 = time.time() - init
+            print("First run, caching", time_1, obs_df_1.shape)
+            init = time.time()
+            obs_df_2 = search.trade_rows_for_dataframe(**params)
+            time_2 = time.time() - init
+            print("Second run, retrieve", time_2, obs_df_2.shape)
+            assert time_2 < time_1
+            assert obs_df_1.equals(obs_df_2)
 
     def testStealBundles(self) -> None:
-        obs_bundles = self.search.steal_bundles(
-            resource_type="Observation", num_pages=5
-        )
-        obs_df = self.search.bundles_to_dataframe(obs_bundles)
-        assert len(obs_df) > 0
-        first_length = len(obs_df)
-        for build_after_query in [True, False]:
-            with self.subTest(msg="build_after_query_{}".format(build_after_query)):
-                obs_df = self.search.steal_bundles_to_dataframe(
-                    resource_type="Observation",
-                    num_pages=5,
-                    build_df_after_query=build_after_query,
-                )
-                assert len(obs_df) == first_length
+        for cache_val in ["cache", None]:
+            for d_requests in [True, False]:
+                for d_build in [True, False]:
+                    with self.subTest(
+                        msg=f"cache_{cache_val}_req_{d_requests}_build_{d_build}"
+                    ):
+                        search = Pirate(
+                            auth=None,
+                            base_url="http://hapi.fhir.org/baseDstu2",
+                            print_request_url=False,
+                            num_processes=3,
+                            cache_folder=cache_val,
+                            disable_multiprocessing_requests=d_requests,
+                            disable_multiprocessing_build=d_build,
+                        )
+                        obs_bundles = search.steal_bundles(
+                            resource_type="Observation", num_pages=5
+                        )
+                        obs_df = search.bundles_to_dataframe(obs_bundles)
+                        assert len(obs_df) > 0
+                        first_length = len(obs_df)
+                        for build_after_query in [True, False]:
+                            with self.subTest(
+                                msg=f"build_after_query_{build_after_query}"
+                            ):
+                                obs_df = search.steal_bundles_to_dataframe(
+                                    resource_type="Observation",
+                                    num_pages=5,
+                                    build_df_after_query=build_after_query,
+                                )
+                                assert len(obs_df) == first_length
+                        search.close()
 
     def testSail(self) -> None:
-        for multi in [True, False]:
-            obs_bundles = self.search.sail_through_search_space(
-                resource_type="Observation",
-                time_attribute_name="_lastUpdated",
-                date_init="2021-01-01",
-                date_end="2022-01-01",
-                disable_multiprocessing=multi,
-            )
-            obs_df = self.search.bundles_to_dataframe(obs_bundles)
-        assert len(obs_df) > 0
-        first_length = len(obs_df)
-        for multi in [True, False]:
-            for build_after_query in [True, False]:
-                with self.subTest(
-                    msg="multi_{}_build_after_query_{}".format(multi, build_after_query)
-                ):
-                    obs_df = self.search.sail_through_search_space_to_dataframe(
-                        resource_type="Observation",
-                        time_attribute_name="_lastUpdated",
-                        date_init="2021-01-01",
-                        date_end="2022-01-01",
-                        build_df_after_query=build_after_query,
-                        disable_multiprocessing=multi,
-                    )
-                    assert len(obs_df) == first_length
+        for cache_val in ["cache", None]:
+            for d_requests in [True, False]:
+                for d_build in [True, False]:
+                    with self.subTest(
+                        msg=f"cache_{cache_val}_req_{d_requests}_build_{d_build}"
+                    ):
+                        search = Pirate(
+                            auth=None,
+                            base_url="http://hapi.fhir.org/baseDstu2",
+                            print_request_url=False,
+                            num_processes=3,
+                            cache_folder=cache_val,
+                            disable_multiprocessing_requests=d_requests,
+                            disable_multiprocessing_build=d_build,
+                        )
+                        obs_bundles = search.sail_through_search_space(
+                            resource_type="Observation",
+                            time_attribute_name="_lastUpdated",
+                            date_init="2021-01-01",
+                            date_end="2022-01-01",
+                        )
+                        obs_df = search.bundles_to_dataframe(obs_bundles)
+                        assert len(obs_df) > 0
+                        first_length = len(obs_df)
+                        for build_after_query in [True, False]:
+                            with self.subTest(
+                                msg=f"build_after_query_{build_after_query}"
+                            ):
+                                obs_df = search.sail_through_search_space_to_dataframe(
+                                    resource_type="Observation",
+                                    time_attribute_name="_lastUpdated",
+                                    date_init="2021-01-01",
+                                    date_end="2022-01-01",
+                                    build_df_after_query=build_after_query,
+                                )
+                                assert len(obs_df) == first_length
 
     def testTrade(self) -> None:
         trade_df = pd.DataFrame(["18262-6", "2571-8"], columns=["code"])
-        for multi in [True, False]:
-            with self.subTest(msg="multi_{}".format(multi)):
-                obs_bundles = self.search.trade_rows_for_bundles(
-                    trade_df,
-                    resource_type="Observation",
-                    df_constraints={"code": "code"},
-                    request_params={"_lastUpdated": "ge2020"},
-                    disable_multiprocessing=multi,
-                )
-                obs_df = self.search.bundles_to_dataframe(obs_bundles)
-                first_length = len(obs_df)
-                assert len(obs_df) > 0
+        for cache_val in ["cache", None]:
+            for d_requests in [True, False]:
+                for d_build in [True, False]:
+                    with self.subTest(
+                        msg=f"cache_{cache_val}_req_{d_requests}_build_{d_build}"
+                    ):
+                        search = Pirate(
+                            auth=None,
+                            base_url="http://hapi.fhir.org/baseDstu2",
+                            print_request_url=False,
+                            num_processes=3,
+                            cache_folder=cache_val,
+                            disable_multiprocessing_requests=d_requests,
+                            disable_multiprocessing_build=d_build,
+                        )
+                        obs_bundles = search.trade_rows_for_bundles(
+                            trade_df,
+                            resource_type="Observation",
+                            df_constraints={"code": "code"},
+                            request_params={"_lastUpdated": "ge2020"},
+                        )
+                        obs_df = search.bundles_to_dataframe(obs_bundles)
+                        first_length = len(obs_df)
+                        assert len(obs_df) > 0
 
-                obs_df = self.search.trade_rows_for_dataframe(
-                    trade_df,
-                    resource_type="Observation",
-                    df_constraints={"code": "code"},
-                    with_ref=True,
-                    request_params={"_lastUpdated": "ge2020"},
-                    disable_multiprocessing=multi,
-                )
-                assert len(obs_df) == first_length
-        for multi in [True, False]:
-            for build_after_query in [True, False]:
-                with self.subTest(
-                    msg="multi_{}_build_after_query_{}".format(multi, build_after_query)
-                ):
-                    obs_df = self.search.trade_rows_for_dataframe(
-                        trade_df,
-                        resource_type="Observation",
-                        df_constraints={"code": "code"},
-                        request_params={"_lastUpdated": "ge2020"},
-                        build_df_after_query=build_after_query,
-                        disable_multiprocessing=multi,
-                    )
-                    assert len(obs_df) == first_length
+                        obs_df = search.trade_rows_for_dataframe(
+                            trade_df,
+                            resource_type="Observation",
+                            df_constraints={"code": "code"},
+                            with_ref=True,
+                            request_params={"_lastUpdated": "ge2020"},
+                        )
+                        assert len(obs_df) == first_length
+                        for build_after_query in [True, False]:
+                            with self.subTest(
+                                msg=f"build_after_query_{build_after_query}"
+                            ):
+                                obs_df = search.trade_rows_for_dataframe(
+                                    trade_df,
+                                    resource_type="Observation",
+                                    df_constraints={"code": "code"},
+                                    request_params={"_lastUpdated": "ge2020"},
+                                    build_df_after_query=build_after_query,
+                                )
+                                assert len(obs_df) == first_length
 
 
 class ContraintsTest(unittest.TestCase):
     def setUp(self) -> None:
+        super().setUp()
         self.search = Pirate(
             auth=None,
             base_url="http://hapi.fhir.org/baseDstu2",
             print_request_url=False,
             num_processes=1,
         )
-        super().setUp()
         self.condition_df = self.search.steal_bundles_to_dataframe(
             resource_type="Condition",
             request_params={
