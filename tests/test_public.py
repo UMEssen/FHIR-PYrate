@@ -394,12 +394,19 @@ class TestPirate(unittest.TestCase):
                             with self.subTest(
                                 msg=f"build_after_query_{build_after_query}"
                             ):
-                                obs_df = search.steal_bundles_to_dataframe(
+                                obs_df1 = search.steal_bundles_to_dataframe(
                                     resource_type="Observation",
                                     num_pages=5,
                                     build_df_after_query=build_after_query,
                                 )
-                                assert len(obs_df) == first_length
+                                assert len(obs_df1) == first_length
+                                obs_df2 = search.query_to_dataframe(
+                                    bundles_function=search.steal_bundles,
+                                    resource_type="Observation",
+                                    num_pages=5,
+                                    build_df_after_query=build_after_query,
+                                )
+                                assert obs_df1.equals(obs_df2)
                         search.close()
 
     def testSail(self) -> None:
@@ -431,14 +438,23 @@ class TestPirate(unittest.TestCase):
                             with self.subTest(
                                 msg=f"build_after_query_{build_after_query}"
                             ):
-                                obs_df = search.sail_through_search_space_to_dataframe(
+                                obs_df1 = search.sail_through_search_space_to_dataframe(
                                     resource_type="Observation",
                                     time_attribute_name="_lastUpdated",
                                     date_init="2021-01-01",
                                     date_end="2022-01-01",
                                     build_df_after_query=build_after_query,
                                 )
-                                assert len(obs_df) == first_length
+                                assert len(obs_df1) == first_length
+                                obs_df2 = search.query_to_dataframe(
+                                    bundles_function=search.sail_through_search_space,
+                                    resource_type="Observation",
+                                    time_attribute_name="_lastUpdated",
+                                    date_init="2021-01-01",
+                                    date_end="2022-01-01",
+                                    build_df_after_query=build_after_query,
+                                )
+                                assert obs_df1.equals(obs_df2)
 
     def testTrade(self) -> None:
         trade_df = pd.DataFrame(["18262-6", "2571-8"], columns=["code"])
@@ -479,14 +495,22 @@ class TestPirate(unittest.TestCase):
                             with self.subTest(
                                 msg=f"build_after_query_{build_after_query}"
                             ):
-                                obs_df = search.trade_rows_for_dataframe(
+                                obs_df1 = search.trade_rows_for_dataframe(
                                     trade_df,
                                     resource_type="Observation",
                                     df_constraints={"code": "code"},
                                     request_params={"_lastUpdated": "ge2020"},
                                     build_df_after_query=build_after_query,
                                 )
-                                assert len(obs_df) == first_length
+                                assert len(obs_df1) == first_length
+                                obs_df2 = search.query_to_dataframe(
+                                    bundles_function=search.trade_rows_for_bundles,
+                                    resource_type="Observation",
+                                    df_constraints={"code": "code"},
+                                    request_params={"_lastUpdated": "ge2020"},
+                                    build_df_after_query=build_after_query,
+                                )
+                                assert obs_df1.equals(obs_df2)
 
 
 class ContraintsTest(unittest.TestCase):
