@@ -795,12 +795,12 @@ class Pirate:
                 return found_param
         params = [
             f"{k}={v}"
-            for k, v in request_params.items()
+            for k, v in sorted(request_params.items())
             if not isinstance(v, (list, tuple))
         ]
         params += [
             f"{k}={element}"
-            for k, v in request_params.items()
+            for k, v in sorted(request_params.items())
             if isinstance(v, (list, tuple))
             for element in v
         ]
