@@ -1477,7 +1477,7 @@ class Pirate:
         bundles_function: Callable,
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        sequential_df_build: bool = False,
+        build_df_after_query: bool = False,
         merge_on: str = None,
         **kwargs: Any,
     ) -> pd.DataFrame:
@@ -1492,8 +1492,8 @@ class Pirate:
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
         future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
         functions for notes on how to use the FHIR paths.
-        :param sequential_df_build: This variable is set to true by other functions in the Pirate
-        class whenever the creation of a DataFrame happens directly after the query
+        :param build_df_after_query: Whether the DataFrame should be built after all bundles have
+        been collected, or whether the bundles should be transformed just after retrieving
         :param merge_on: Whether to merge the results on a certain row after computing. This is
         useful when using includes, if you store the IDs on the same column you can use that column
         to merge all the rows into one, example below
@@ -1531,7 +1531,7 @@ class Pirate:
                 process_function=process_function,
                 fhir_paths=fhir_paths,
                 merge_on=merge_on,
-                build_df_after_query=not sequential_df_build,
+                build_df_after_query=build_df_after_query,
             )
         elif bundles_function == self.sail_through_search_space:
             return self.sail_through_search_space_to_dataframe(
@@ -1539,7 +1539,7 @@ class Pirate:
                 process_function=process_function,
                 fhir_paths=fhir_paths,
                 merge_on=merge_on,
-                build_df_after_query=not sequential_df_build,
+                build_df_after_query=build_df_after_query,
             )
         elif bundles_function == self.trade_rows_for_bundles:
             return self.trade_rows_for_dataframe(
@@ -1548,7 +1548,7 @@ class Pirate:
                 fhir_paths=fhir_paths,
                 with_ref=False,
                 merge_on=merge_on,
-                build_df_after_query=not sequential_df_build,
+                build_df_after_query=build_df_after_query,
             )
         else:
             raise ValueError(
