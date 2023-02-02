@@ -66,6 +66,22 @@ def get_diagnostic_text(bundle: FHIRObj) -> Dict[str, List[Dict]]:
     return records
 
 
+def get_diagnostic_text_list(bundle: FHIRObj) -> List[Dict]:
+    records: List[Dict] = []
+    for entry in bundle.entry or []:
+        resource = entry.resource
+        records.append(
+            {
+                "fhir_diagnostic_report_id": resource.id,
+                "report_status": resource.text.status
+                if resource.text is not None
+                else None,
+                "report_text": resource.text.div if resource.text is not None else None,
+            }
+        )
+    return records
+
+
 def get_observation_info(bundle: FHIRObj) -> Dict[str, List[Dict]]:
     records: Dict[str, List[Dict]] = {"Observation": []}
     for entry in bundle.entry or []:
@@ -330,6 +346,26 @@ class ExampleTests(unittest.TestCase):
         )
         assert len(diagnostic_df) > 47
 
+        miner = Miner(
+            target_regex="Metabolic", decode_text=decode_text, num_processes=1
+        )
+        df_filtered = miner.nlp_on_dataframe(
+            diagnostic_df,
+            text_column_name="report_text",
+            new_column_name="text_found",
+        )
+        assert sum(df_filtered["text_found"]) == 33
+
+    def testExample4WithList(self) -> None:
+        diagnostic_df = self.search.steal_bundles_to_dataframe(
+            resource_type="DiagnosticReport",
+            request_params={
+                "_count": 100,
+                "_lastUpdated": "ge2021",
+            },
+            process_function=get_diagnostic_text_list,  # Use processing function
+        )
+        assert len(diagnostic_df) > 47
         miner = Miner(
             target_regex="Metabolic", decode_text=decode_text, num_processes=1
         )

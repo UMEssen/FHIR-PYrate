@@ -1368,6 +1368,9 @@ class Pirate:
             pool.join()
         results: Dict[str, List[Dict[str, Any]]] = {}
         for bundle_output in processed_bundles:
+            if isinstance(bundle_output, List):
+                bundle_output = {"SingleResource": bundle_output}
+                always_return_dict = False
             for resource_type, records in bundle_output.items():
                 results.setdefault(resource_type, [])
                 results[resource_type] += records
@@ -1481,7 +1484,6 @@ class Pirate:
                 **kwargs,
                 process_function=process_function,
                 fhir_paths=fhir_paths,
-                merge_on=merge_on,
                 build_df_after_query=not sequential_df_build,
             )
         elif bundles_function == self.sail_through_search_space:
@@ -1489,7 +1491,6 @@ class Pirate:
                 **kwargs,
                 process_function=process_function,
                 fhir_paths=fhir_paths,
-                merge_on=merge_on,
                 build_df_after_query=not sequential_df_build,
             )
         elif bundles_function == self.trade_rows_for_bundles:
@@ -1498,7 +1499,6 @@ class Pirate:
                 process_function=process_function,
                 fhir_paths=fhir_paths,
                 with_ref=False,
-                merge_on=merge_on,
                 build_df_after_query=not sequential_df_build,
             )
         else:
