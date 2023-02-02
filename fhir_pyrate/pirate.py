@@ -392,38 +392,6 @@ class Pirate:
             tqdm_df_build=False,
         )
 
-    def trade_rows_for_dataframe_with_ref(
-        self,
-        df: pd.DataFrame,
-        resource_type: str,
-        df_constraints: Dict[
-            str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
-        ],
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        request_params: Dict[str, Any] = None,
-        num_pages: int = -1,
-        merge_on: str = None,
-    ) -> pd.DataFrame:
-        """
-        Deprecated, use trade_rows_for_dataframe(..., with_ref=True) instead.
-        """
-        warnings.warn(
-            "The trade_rows_for_dataframe_with_ref function is deprecated, please use "
-            "trade_rows_for_dataframe(..., with_ref=True) instead."
-        )
-        return self.trade_rows_for_dataframe(
-            df=df,
-            resource_type=resource_type,
-            df_constraints=df_constraints,
-            process_function=process_function,
-            fhir_paths=fhir_paths,
-            request_params=request_params,
-            num_pages=num_pages,
-            with_ref=True,
-            merge_on=merge_on,
-        )
-
     def trade_rows_for_dataframe(
         self,
         df: pd.DataFrame,
@@ -435,7 +403,7 @@ class Pirate:
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         request_params: Dict[str, Any] = None,
         num_pages: int = -1,
-        with_ref: bool = False,
+        with_ref: bool = True,
         with_columns: List[Union[str, Tuple[str, str]]] = None,
         merge_on: str = None,
         build_df_after_query: bool = False,
@@ -899,7 +867,12 @@ class Pirate:
                 if isinstance(column_constraint, str)
                 else (
                     column_constraint[0]
-                    + ("%7C" if "http" in column_constraint[0] else ""),
+                    + (
+                        "%7C"
+                        if "http" in column_constraint[0]
+                        and "%7C" not in column_constraint[0]
+                        else ""
+                    ),
                     column_constraint[1],
                 )
                 for column_constraint in list_of_constraints
@@ -1498,3 +1471,87 @@ class Pirate:
                 )
 
         return wrap
+
+    def query_to_dataframe(
+        self,
+        bundles_function: Callable,
+        process_function: Callable[[FHIRObj], Any] = flatten_data,
+        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        sequential_df_build: bool = False,
+        merge_on: str = None,
+        **kwargs: Any,
+    ) -> pd.DataFrame:
+        """
+        Wrapper function that given any of the functions that return bundles, builds the
+        DataFrame straight away.
+        :param bundles_function: The function that should be used to get the bundles,
+        e.g. self.sail_through_search_space, trade_rows_for_bundles
+        :param process_function: The transformation function going through the entries and
+        storing the entries to save
+        :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
+        DataFrame, alternatively, a list of tuples can be used to specify the column name of the
+        future column with (column_name, fhir_path). Please refer to the `bundles_to_dataframe`
+        functions for notes on how to use the FHIR paths.
+        :param sequential_df_build: This variable is set to true by other functions in the Pirate
+        class whenever the creation of a DataFrame happens directly after the query
+        :param merge_on: Whether to merge the results on a certain row after computing. This is
+        useful when using includes, if you store the IDs on the same column you can use that column
+        to merge all the rows into one, example below
+        :param kwargs: The arguments that will be passed to the `bundles_function` function,
+        please refer to the documentation of the respective methods.
+        :return: A pandas DataFrame containing the queried information
+        The following example will initially return one row for each entry, but using
+        `group_row="patient_id"` we choose a column to run the merge on. This will merge the
+        columns that contain values that for the others are empty, having then one row representing
+        one patient.
+        ```
+        df = search.query_to_dataframe(
+            bundles_function=search.steal_bundles,
+            resource_type="Patient",
+            request_params={
+                "_sort": "_id",
+                "_count": 10,
+                "birthdate": "ge1990",
+                "_revinclude": "Condition:subject",
+            },
+            fhir_paths=[
+                ("patient_id", "Patient.id"),
+                ("patient_id", "Condition.subject.reference.replace('Patient/', '')"),
+                "Patient.gender",
+                "Condition.code.coding.code",
+            ],
+            num_pages=1,
+            group_row="patient_id"
+        )
+        ```
+        """
+        if bundles_function == self.steal_bundles:
+            return self.steal_bundles_to_dataframe(
+                **kwargs,
+                process_function=process_function,
+                fhir_paths=fhir_paths,
+                merge_on=merge_on,
+                build_df_after_query=not sequential_df_build,
+            )
+        elif bundles_function == self.sail_through_search_space:
+            return self.sail_through_search_space_to_dataframe(
+                **kwargs,
+                process_function=process_function,
+                fhir_paths=fhir_paths,
+                merge_on=merge_on,
+                build_df_after_query=not sequential_df_build,
+            )
+        elif bundles_function == self.trade_rows_for_bundles:
+            return self.trade_rows_for_dataframe(
+                **kwargs,
+                process_function=process_function,
+                fhir_paths=fhir_paths,
+                with_ref=False,
+                merge_on=merge_on,
+                build_df_after_query=not sequential_df_build,
+            )
+        else:
+            raise ValueError(
+                f"The given function {bundles_function.__name__} "
+                f"cannot be used to obtain a dataframe."
+            )
