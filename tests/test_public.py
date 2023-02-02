@@ -506,6 +506,7 @@ class TestPirate(unittest.TestCase):
                                     .sort_values(by="id")
                                     .reset_index(drop=True)
                                 )
+                                assert isinstance(obs_df2, pd.DataFrame)
                                 sorted_obs2 = (
                                     obs_df2.sort_index(axis=1)
                                     .sort_values(by="id")
@@ -579,6 +580,7 @@ class TestPirate(unittest.TestCase):
                                     .sort_values(by="id")
                                     .reset_index(drop=True)
                                 )
+                                assert isinstance(obs_df2, pd.DataFrame)
                                 sorted_obs2 = (
                                     obs_df2.sort_index(axis=1)
                                     .sort_values(by="id")

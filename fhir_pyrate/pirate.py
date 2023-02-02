@@ -1432,9 +1432,8 @@ class Pirate:
         process_function: Callable[[FHIRObj], Any] = flatten_data,
         fhir_paths: List[Union[str, Tuple[str, str]]] = None,
         build_df_after_query: bool = False,
-        merge_on: str = None,
         **kwargs: Any,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Wrapper function that given any of the functions that return bundles, builds the
         DataFrame straight away.
