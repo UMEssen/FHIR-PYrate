@@ -1370,7 +1370,6 @@ class Pirate:
         for bundle_output in processed_bundles:
             if isinstance(bundle_output, List):
                 bundle_output = {"SingleResource": bundle_output}
-                always_return_dict = False
             for resource_type, records in bundle_output.items():
                 results.setdefault(resource_type, [])
                 results[resource_type] += records
