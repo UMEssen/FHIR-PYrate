@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+title: >-
+  FHIR-PYrate: A Data Science Friendly Python Package to Query FHIR Servers
+message: 'If you use FHIR-PYrate, please cite it as below.'
+type: software
+doi: 10.5281/zenodo.7025226
+authors:
+  - family-names: Hosch
+    given-names: René
+    orcid: 'https://orcid.org/0000-0003-1760-2342'
+  - family-names: Baldini
+    given-names: Giulia
+    orcid: 'https://orcid.org/0000-0002-5929-0271'
+  - family-names: Parmar
+    given-names: Vicky
+    orcid: 'https://orcid.org/0000-0002-0383-0435'
+  - family-names: Borys
+    given-names: Katarzyna
+    orcid: 'https://orcid.org/0000-0001-6987-6041'
+  - family-names: Koitka
+    given-names: Sven
+    orcid: 'https://orcid.org/0000-0001-9704-1180'
+  - family-names: Arzideh
+    given-names: Kamyar
+  - family-names: Engelke
+    given-names: Merlin
+    orcid: 'https://orcid.org/0000-0002-8463-8786'
+  - family-names: Ulrich
+    given-names: Moritz
+  - family-names: Nensa
+    given-names: Felix
+    orcid: 'https://orcid.org/0000-0002-5811-7100'
