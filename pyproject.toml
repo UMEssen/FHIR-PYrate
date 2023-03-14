@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fhir-pyrate"
-version = "0.2.0-beta.8"
+version = "0.2.0-beta.9"
 description = "FHIR-PYrate is a package that provides a high-level API to query FHIR Servers for bundles of resources and return the structured information as pandas DataFrames. It can also be used to filter resources using RegEx and SpaCy and download DICOM studies and series."
 license = "MIT"
 authors = ["Rene Hosch <rene.hosch@uk-essen.de>", "Giulia Baldini <giulia.baldini@uk-essen.de>"]
