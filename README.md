@@ -203,10 +203,12 @@ The Pirate functions do one of three things:
 | trade_rows_for_dataframe                |  3   |       Yes       |    Yes    |      DataFrame       |
 
 
-**BETA FEATURE**: It is also possible to cache the bundles using the `bundle_caching` parameter,
-which specifies a caching folder. This has not yet been tested extensively and does not have any
-cache invalidation mechanism.
-
+**CACHING**: It is also possible to cache the bundles using the `cache_folder` parameter.
+This unfortunately does not currently work with multiprocessing, but saves a lot of time if you
+need to download a lot of data and you are always doing the same requests.
+You can also specify how long the cache should be valid with the `cache_expiry_time` parameter.
+Additionally, you can also specify whether the requests should be retried using the `retry_requests`
+parameter. There is an example of this in the docstrings of the Pirate class.
 
 A toy request for ImagingStudy:
 
@@ -396,7 +398,65 @@ parameters specified in `df_constraints` as columns of the final DataFrame.
 You can find an example in [Example 3](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/3-patients-for-condition.ipynb).
 Additionally, you can specify the `with_columns` parameter, which can add any columns from the original
 DataFrame. The columns can be either specified as a list of columns `[col1, col2, ...]` or as a
-list of tuples `[(new_name_for_col1, col1), (new_name_for_col2, col2), ...]`
+list of tuples `[(new_name_for_col1, col1), (new_name_for_col2, col2), ...]`.
+
+Currently, whenever a column is completely empty (i.e., no resources
+have a corresponding value for that column), it is just removed from the DataFrame.
+This is to ensure that we output clean DataFrames when we are handling multiple resources.
+More on that in the following section.
+
+#### Note on Querying Multiple Resources
+
+Not all FHIR servers allow this (at least not the public ones that we have tried),
+but it is also possible to obtain multiple resources with just one query:
+```python
+search = ...
+result_dfs = search.steal_bundles_to_dataframe(
+    resource_type="ImagingStudy",
+    request_params={
+        "_lastUpdated": "ge2022-12",
+        "_count": "3",
+        "_include": "ImagingStudy:subject",
+    },
+    fhir_paths=[
+        "id",
+        "started",
+        ("modality", "modality.code"),
+        ("procedureCode", "procedureCode.coding.code"),
+        (
+            "study_instance_uid",
+            "identifier.where(system = 'urn:dicom:uid').value.replace('urn:oid:', '')",
+        ),
+        ("series_instance_uid", "series.uid"),
+        ("series_code", "series.modality.code"),
+        ("numberOfInstances", "series.numberOfInstances"),
+        ("family_first", "name[0].family"),
+        ("given_first", "name[0].given"),
+    ],
+    num_pages=1,
+)
+```
+In this case, a dictionary of DataFrames is returned, where the keys are the resource types.
+You can then select the single dictionary by doing `result_dfs["ImagingStudy"]`
+or `result_dfs["Patient"]`.
+You can find an example of this in [Example 2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-condition-to-imaging-study.ipynb)
+where the `ImagingStudy` resource is queried.
+
+In theory, it would be smarter to specify the resource name in front of the FHIRPaths,
+e.g. `ImagingStudy.series.uid` instead of `series.uid`, and for each DataFrame only return the
+corresponding attributes.
+However, we do not want to force the user to always specify the resource type, and in the current
+version the DataFrames
+coming from multiple resources have the same columns, because
+we cannot filter which resource was actually intended.
+Currently, we solved this by just removing all columns that do not have any results.
+Which means however, that if you are actually requesting an attribute for a specific resource and it
+is not found, that that column will not appear.
+In the future, [we plan to do a smarter filtering of the FHIRPaths](https://github.com/UMEssen/FHIR-PYrate/issues/120),
+such that only the ones containing
+the actual resource name are kept if the resource name is specified in the path,
+and that a column full of `None`s is obtained in case no resource type is specified.
+
 
 ### [Miner](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/miner.py)
 
