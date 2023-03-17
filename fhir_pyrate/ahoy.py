@@ -33,6 +33,9 @@ class Ahoy:
     :param token_refresh_delta: Either a timedelta object that tells us how often the token
     should be refreshed, or a number of minutes; this does not need to be specified for JWT tokens
     that contain the expiry date
+    :param session: The session that can be used for the authentication. This is particularly
+    useful if you have some particular requirements for your authentication (e.g. you need to
+    support for cusum self-signed certificates).
     """
 
     def __init__(
@@ -45,6 +48,7 @@ class Ahoy:
         token: str = None,
         max_login_attempts: int = 5,
         token_refresh_delta: Union[int, timedelta] = None,
+        session: requests.Session = None,
     ) -> None:
         self.auth_type = auth_type
         self.auth_method = auth_method
@@ -54,7 +58,10 @@ class Ahoy:
         self._user_env_name = "FHIR_USER"
         self._pass_env_name = "FHIR_PASSWORD"
         self.token = token
-        self.session = requests.Session()
+        if session is None:
+            self.session = requests.Session()
+        else:
+            self.session = session
         self.max_login_attempts = max_login_attempts
         self.token_refresh_delta = token_refresh_delta
         if self.auth_type is not None and self.auth_method is not None:
