@@ -127,6 +127,9 @@ class Pirate:
             self.session = requests.session()
         self.disable_multiprocessing_requests = disable_multiprocessing_requests
         self.disable_multiprocessing_build = disable_multiprocessing_build
+        if num_processes == 1:
+            self.disable_multiprocessing_requests = True
+            self.disable_multiprocessing_build = True
         self.caching = False
         if cache_folder is not None:
             # TODO: Change this to work with context managers
