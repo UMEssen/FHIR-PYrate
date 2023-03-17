@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9"]
+        python-version: ["3.8", "3.9", "3.10.6"]
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -41,14 +41,13 @@ jobs:
       # Install poetry
       - name: Install poetry
         run: |
-          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
-          export PATH="/root/.local/bin:$PATH"
+          curl -sSL https://install.python-poetry.org | python3 -
           poetry run pip install -U pip
           poetry install -E all
       - name: Run MyPy
         run: |
-          poetry run mypy --install-types --non-interactive fhir_pyrate/
-          poetry run mypy --install-types --non-interactive tests/
+          poetry run mypy --install-types --non-interactive fhir_pyrate
+          poetry run mypy --install-types --non-interactive tests
       - name: Run Flake8
         run: |
           poetry run flake8 fhir_pyrate/

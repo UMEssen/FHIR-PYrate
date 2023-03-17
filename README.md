@@ -1,5 +1,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Supported Python version](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
+[![Supported Python version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
+[![Stable Version](https://img.shields.io/pypi/v/fhir-pyrate?label=stable)](https://pypi.org/project/fhir-pyrate/)
+[![Pre-release Version](https://img.shields.io/github/v/release/UMEssen/fhir-pyrate?label=pre-release&include_prereleases&sort=semver)](https://pypi.org/project/fhir-pyrate/#history)
+[![DOI](https://zenodo.org/badge/456893108.svg)](https://zenodo.org/badge/latestdoi/456893108)
 
 <!-- PROJECT LOGO -->
 <br />
@@ -10,7 +13,7 @@
 </div>
 
 This package is meant to provide a simple abstraction to query and structure FHIR resources as
-pandas DataFrames.
+pandas DataFrames. Want to use R instead? Try out [fhircrackr](https://github.com/POLAR-fhiR/fhircrackr)!
 
 There are four main classes:
 * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/ahoy.py): Authenticate on the FHIR API
@@ -53,8 +56,7 @@ Table of Contents:
       * [sail_through_search_space](https://github.com/UMEssen/FHIR-PYrate/#sail_through_search_space)
       * [trade_rows_for_bundles](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_bundles)
       * [bundles_to_dataframe](https://github.com/UMEssen/FHIR-PYrate/#bundles_to_dataframe)
-      * [query_to_dataframe](https://github.com/UMEssen/FHIR-PYrate/#query_to_dataframe)
-      * [trade_rows_for_dataframe](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_dataframe)
+      * [***_dataframe](https://github.com/UMEssen/FHIR-PYrate/#_dataframe)
    * [Miner](https://github.com/UMEssen/FHIR-PYrate/#miner)
    * [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/#dicomdownloader)
 * [Contributing](https://github.com/UMEssen/FHIR-PYrate/#contributing)
@@ -75,7 +77,7 @@ or using GitHub (always the newest version).
 pip install git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
 
-These two commands only install the packages needed for `Pirate`. If you also want to use the `Miner` or the `DicomDownloader`, then you need to install them as extra dependencies with
+These two commands only install the packages needed for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
 ```bash
 pip install "fhir-pyrate[miner]" # only for miner
 pip install "fhir-pyrate[downloader]" # only for downloader
@@ -105,7 +107,7 @@ and then run
 poetry lock
 ```
 
-Also in poetry, the above only installs the packages for `Pirate`. If you also want to use the `Miner` or the `DicomDownloader`, then you need to install them as extra dependencies with
+Also in poetry, the above only installs the packages for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
 ```bash
 poetry add "fhir-pyrate[miner]" # only for miner
 poetry add "fhir-pyrate[downloader]" # only for downloader
@@ -146,8 +148,8 @@ from fhir_pyrate import Ahoy
 auth = Ahoy(
   username="your_username",
   auth_method="password",
-  auth_url=auth-url, # The URL for authentication
-  refresh_url=refresh-url, # The URL to refresh the authentication
+  auth_url="auth-url", # Your URL for authentication
+  refresh_url="refresh-url", # Your URL to refresh the authentication token (if available)
 )
 ```
 
@@ -173,35 +175,32 @@ auth = ...
 # Init Pirate
 search = Pirate(
     auth=auth,
-    base_url=fhir-url, # e.g. "http://hapi.fhir.org/baseDstu2"
+    base_url="fhir-url", # e.g. "http://hapi.fhir.org/baseDstu2"
     print_request_url=False, # If set to true, you will see all requests
 )
 ```
 
 The Pirate functions do one of three things:
-1. They run the query and collect the resources and store them in a list of bundles.
+1. They run the query and collect the resources and store them in a generator of bundles.
    * `steal_bundles`: single process, no timespan to specify
-   * `steal_bundles_for_timespan`: single process, timespan can be specified
-   * `sail_through_search_space`: multiprocess, divide&conquer with many smaller timespans, uses `steal_bundles_for_timespan`
-   * `trade_rows_for_bundles`: multiprocess, takes DataFrame as input and runs one query per row,
-     uses `steal_bundles`
-2. They take a list of bundles and build a DataFrame.
-   * `bundles_to_dataframe`: multiprocess
+   * `sail_through_search_space`: multiprocess, divide&conquer with many smaller timespans
+   * `trade_rows_for_bundles`: multiprocess, takes DataFrame as input and runs one query per row
+2. They take a generator of bundles and build a DataFrame.
+   * `bundles_to_dataframe`: multiprocess, builds the DataFrame from the bundles.
 3. They are wrapper that combine the functionalities of 1&2, or that set some particular parameters.
-   * `query_to_dataframe`: multiprocess, executes any function selected with `bundles_function`
-     (any of the functions in 1.) and then runs `bundles_to_dataframe` on the result.
-   * `trade_rows_for_dataframe`: multiprocess, executes `steal_bundles`&`bundles_to_dataframe`
-     for each row of the DataFrame.
+   * `steal_bundles_to_dataframe`: single process, executes `steal_bundles` and then runs `bundles_to_dataframe` on the result.
+   * `sail_through_search_space_to_dataframe`: multiprocess, executes `sail_through_search_space` and then runs `bundles_to_dataframe` on the result.
+   * `trade_rows_for_dataframe`: multiprocess, executes `trade_rows_for_bundles` and then runs `bundles_to_dataframe` on the result, it is also possible to add columns from the original DataFrame to the result
 
-| Name                       | Type | Multiprocessing | DF Input? |           Output           |
-|:---------------------------|:----:|:---------------:|:---------:|:--------------------------:|
-| steal_bundles              |  1   |       No        |    No     | List of Bundles of FHIRObj |
-| steal_bundles_for_timespan |  1   |       No        |    No     | List of Bundles of FHIRObj |
-| sail_through_search_space  |  1   |       Yes       |    No     | List of Bundles of FHIRObj |
-| trade_rows_for_bundles     |  1   |       Yes       |    Yes    | List of Bundles of FHIRObj |
-| bundles_to_dataframe       |  2   |       Yes       |    No     |         DataFrame          |
-| query_to_dataframe         |  3   |       Yes       |    Yes    |         DataFrame          |
-| trade_rows_for_dataframe   |  3   |       Yes       |    Yes    |         DataFrame          |
+| Name                                    | Type | Multiprocessing | DF Input? |        Output        |
+|:----------------------------------------|:----:|:---------------:|:---------:|:--------------------:|
+| steal_bundles                           |  1   |       No        |    No     | Generator of FHIRObj |
+| sail_through_search_space               |  1   |       Yes       |    No     | Generator of FHIRObj |
+| trade_rows_for_bundles                  |  1   |       Yes       |    Yes    | Generator of FHIRObj |
+| bundles_to_dataframe                    |  2   |       Yes       |     /     |      DataFrame       |
+| steal_bundles_to_dataframe              |  3   |       No        |    No     |      DataFrame       |
+| sail_through_search_space_to_dataframe  |  3   |       Yes       |    No     |      DataFrame       |
+| trade_rows_for_dataframe                |  3   |       Yes       |    Yes    |      DataFrame       |
 
 
 **BETA FEATURE**: It is also possible to cache the bundles using the `bundle_caching` parameter,
@@ -215,8 +214,7 @@ A toy request for ImagingStudy:
 search = ...
 
 # Make the FHIR call
-bundles = search.query_to_dataframe(
-    bundles_function=search.sail_through_search_space,
+bundles = search.sail_through_search_space_to_dataframe(
     resource_type="ImagingStudy",
     date_init="2021-04-01",
     time_attribute_name="started",
@@ -230,9 +228,8 @@ bundles = search.query_to_dataframe(
 The argument `request_params` is a dictionary that takes a string as key (the FHIR identifier) and anything as value.
 If the value is a list or tuple, then all values will be used to build the request to the FHIR API.
 
-`query_to_dataframe` is a wrapper function. It collects the bundles that result from the
-`bundles_function` that was called and calls `bundles_to_dataframe`. In this case, we used
-sail_through_search_space.
+`sail_through_search_space_to_dataframe` is a wrapper function that directly converts the result of
+`sail_through_search_space` into a DataFrame.
 
 #### [`sail_through_search_space`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
@@ -240,16 +237,16 @@ The `sail_through_search_space` function uses the multiprocessing module to spee
 The multiprocessing is done as follows:
 The time frame is divided into multiple time spans (as many as there are processes) and each smaller
 time frame is investigated simultaneously. This is why it is necessary to give a `date_init`
-and `date_end` param to the
-`sail_through_search_space` function. The default values are `date_init=2010-01-01` and today (the day
-when the query is performed)
-for `date_end`.
+and `date_end` param to the `sail_through_search_space` function.
+
+**Note** that if the `date_init` or `date_end` parameters are given as strings, they will be converted
+to `datetime.datetime` objects, so any non specified parameters (month, day or time) will be assumed
+according to the `datetime` workflow, and then converted to string according to the `time_format`
+specified in the **Pirate** constructor.
 
 A problematic aspect of the resources is that the date in which the resource was acquired is defined
 using different attributes. Also, some resources use a fixed date, other use a time period.
 You can specify the date attribute that you want to use with `time_attribute_name`.
-In the following table you can see which resource attributes we use of each of the resources.
-The default attribute is `_lastUpdated`.
 
 The resources where the date is based on a period (such as `Encounter` or `Procedure`) may cause
 duplicates in the multiprocessing because one entry may belong to multiple time spans that are
@@ -286,12 +283,12 @@ contains a bunch of different LOINC codes. Our `df_constraints` could look as fo
 df_constraints={"code": ("http://loinc.org", "loinc_code")}
 ```
 
-This function also uses multiprocessing, but differently from before, it will investigate the rows
+This function also uses multiprocessing, but differently from before, it will process the rows
 of the DataFrame in parallel.
 
 #### [`bundles_to_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
-The two functions described above return a list of `FHIRObj` bundles which can then be
+The two functions described above return a generator of `FHIRObj` bundles which can then be
 converted to a `DataFrame` using this function.
 
 The `bundles_to_dataframe` has three options on how to handle and extract the relevant information
@@ -365,8 +362,7 @@ instead (as in 2.).
 pieces of information but for the same resource, the field will be only filled with the first
 occurence that is not None.
 ```python
-df = search.query_to_dataframe(
-    bundles_function=search.steal_bundles,
+df = search.steal_bundles_to_dataframe(
     resource_type="DiagnosticReport",
     request_params={
         "_count": 1,
@@ -387,29 +383,20 @@ df = search.query_to_dataframe(
         ("code_abc", "code.coding.where(system = 'ABC').code"),
         ("code_def", "code.coding.where(system = 'DEF').code"),
     ],
-    stop_after_first_page=True,
+    num_pages=1,
 )
 ```
 
+#### [`***_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
+The `steal_bundles_to_dataframe`, `sail_through_search_space_to_dataframe` and `trade_rows_for_dataframe`
+are facade functions which retrieve the bundles and then run `bundles_to_dataframe`.
 
-In case you are not sure whether we have collected the same entry multiple times
-(i.e. when using multiprocessing in `sail_through_search_space` with a resource that uses a time
-period), please use the `drop_duplicates` function from pandas. A list of column names for which
-we do not want duplicates shall be passed as parameter and all duplicate rows will disappear.
-
-#### [`query_to_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
-This function is simply a wrapper that can be used to combine any function of Type 1 and
-`bundles_to_dataframe`. Look at [examples](examples) for some use cases.
-
-#### [`trade_rows_for_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
-This function has an output similar to `query_to_dataframe` with
-`bundles_function=trade_rows_for_bundles`, but with two main differences:
-1. Here, the bundles are retrieved and the DataFrame is computed straight away. In
-   `query_to_dataframe(bundles_function=trade_rows_for_bundles, ...)` first all the bundles are
-   retrieved, and then they are converted into a DataFrame.
-2. If the `df_constraints` constraints are specified, they will end up in the final DataFrame.
-
+In `trade_rows_for_dataframe` you can also specify the `with_ref` parameter to also add the
+parameters specified in `df_constraints` as columns of the final DataFrame.
 You can find an example in [Example 3](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/3-patients-for-condition.ipynb).
+Additionally, you can specify the `with_columns` parameter, which can add any columns from the original
+DataFrame. The columns can be either specified as a list of columns `[col1, col2, ...]` or as a
+list of tuples `[(new_name_for_col1, col1), (new_name_for_col2, col2), ...]`
 
 ### [Miner](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/miner.py)
 
@@ -526,6 +513,7 @@ request. You can also simply open an issue with the tag "enhancement".
 5. Open a Pull Request
 
 ## Authors and acknowledgment
+
 This package was developed by the [SHIP-AI group at the Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/).
 
 - [goku1110](https://github.com/goku1110): initial idea, development, logo & figures

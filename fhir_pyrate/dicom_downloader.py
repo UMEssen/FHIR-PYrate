@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import traceback
+import warnings
 from contextlib import contextmanager
 from types import TracebackType
 from typing import Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
@@ -107,9 +108,14 @@ class DicomDownloader:
     :param auth: Either an authenticated instance of the Ahoy class, or an authenticated
     requests.Session that can be used to communicate with the PACS to download the files
     :param dicom_web_url: The DicomWeb URL used to download the files
-    :param output_format: The options are [nifti, DICOM]:
+    :param output_format: The complete selection of formats is stored in the ACCEPTED_FORMATS
+    variable:
     DICOM will leave the files as they are;
-    nifti will convert them to .nii.gz
+    all the other formats will load the documents with SimpleITK and save them according to
+    that format
+    :param use_compression: This option will be passed to the SimpleITK parameter `use_compression`
+    for compression. Please check the SimpleITK documentation to find out which formats can be
+    compressed. If the output is DICOM, this flag will be ignored.
     :param hierarchical_storage: How the hierarchy of the downloaded files should look like.
     If 0, then all download folders will be in the same folder.
     If greater than 0, the download ID will be split to create multiple subdirectories.
@@ -117,16 +123,42 @@ class DicomDownloader:
     given a download ID 263a1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd
     and `hierarchical_storage` = 2, the data will be stored in
     26/3a/1dad02916f5eca3c4eec51dc9d281735b47b8eb8bc2343c56e6ccd.
+    :param turn_off_checks: The checks on the DICOM files will be turned off and whatever kind of
+    DICOM was downloaded will be copied to the output folder.
+    :param always_download_in_study_folder: Whether the series should always be saved under their
+    study ID, even though a series ID has been specified. This ensures that series from the same
+    study will always end up in the same folder.
     :param retry: This flag will set the retry parameter of the DicomWebClient, which activates
-    HTTP retrying
+    HTTP retrying.
     """
+
+    ACCEPTED_FORMATS = {
+        ".dcm",
+        ".nia",
+        ".nii",
+        ".nii.gz",
+        ".hdr",
+        ".img",
+        ".img.gz",
+        ".tif",
+        ".TIF",
+        ".tiff",
+        ".TIFF",
+        ".mha",
+        ".mhd",
+        ".nrrd",
+        ".nhdr",
+    }
 
     def __init__(
         self,
         auth: Optional[Union[requests.Session, Ahoy]],
         dicom_web_url: str,
-        output_format: str = "nifti",
+        output_format: str = ".nii.gz",
+        use_compression: bool = False,
         hierarchical_storage: int = 0,
+        turn_off_checks: bool = False,
+        always_download_in_study_folder: bool = False,
         retry: bool = False,
     ):
         self.dicom_web_url = dicom_web_url
@@ -140,9 +172,8 @@ class DicomDownloader:
             self.session = requests.session()
         self.client = self._init_dicom_web_client()
         self.client.set_http_retry_params(retry=retry)
-        if output_format.lower() not in ["nifti", "dicom"]:
-            raise ValueError(f"The given format {output_format} is not supported.")
-        self._output_format = output_format.lower()
+        self.set_output_format(new_output_format=output_format)
+        self.use_compression = use_compression
         self.study_instance_uid_field = "study_instance_uid"
         self.series_instance_uid_field = "series_instance_uid"
         self.deid_study_instance_uid_field = "deidentified_study_instance_uid"
@@ -151,6 +182,8 @@ class DicomDownloader:
         self.download_id_field = "download_id"
         self.error_type_field = "error"
         self.traceback_field = "traceback"
+        self.turn_off_checks = turn_off_checks
+        self.always_download_in_study_folder = always_download_in_study_folder
         self.hierarchical_storage = hierarchical_storage
 
     def set_output_format(self, new_output_format: str) -> None:
@@ -160,9 +193,14 @@ class DicomDownloader:
         :param new_output_format: The new output format
         :return: None
         """
-        if new_output_format.lower() not in ["nifti", "dicom"]:
+        if new_output_format.lower() == "nifti":
+            self._output_format = ".nii.gz"
+        elif new_output_format.lower() == "dicom":
+            self._output_format = ".dcm"
+        elif new_output_format in self.ACCEPTED_FORMATS:
+            self._output_format = new_output_format
+        else:
             raise ValueError(f"The given format {new_output_format} is not supported.")
-        self._output_format = new_output_format.lower()
 
     def __enter__(self) -> "DicomDownloader":
         return self
@@ -193,16 +231,23 @@ class DicomDownloader:
         self.close()
 
     @staticmethod
-    def get_download_id(study_uid: str, series_uid: str = None) -> str:
+    def get_download_id(
+        study_uid: str,
+        series_uid: str = None,
+        always_download_in_study_folder: bool = False,
+    ) -> str:
         """
         Generate a download id given the study and (if available) the series ID.
 
         :param study_uid: The study ID to download
         :param series_uid: The series ID to download
+        :param always_download_in_study_folder: Whether the series should always be saved under their
+        study ID, even though a series ID has been specified. This ensures that series from the same
+        study will always end up in the same folder.
         :return: An encoded combination of study and series ID
         """
         key_string = study_uid
-        if series_uid is not None:
+        if series_uid is not None and not always_download_in_study_folder:
             key_string += "_" + series_uid
         return hashlib.sha256(key_string.encode()).hexdigest()
 
@@ -248,19 +293,25 @@ class DicomDownloader:
         downloaded_series_info: List[Dict[str, str]] = []
         error_series_info: List[Dict[str, str]] = []
         # Generate a hash of key/series which will be the ID of this download
-        download_id = self.get_download_id(study_uid=study_uid, series_uid=series_uid)
+        download_id = self.get_download_id(
+            study_uid=study_uid,
+            series_uid=series_uid,
+            always_download_in_study_folder=self.always_download_in_study_folder,
+        )
         # Recompute if the hash does not exist in existing IDs, in case existing IDs is given
         recompute = (
             download_id not in existing_ids if existing_ids is not None else False
         )
-        file_format = ".nii.gz" if self._output_format == "nifti" else ".dcm"
         logger.info(f"{get_datetime()} Current download ID: {download_id}")
 
         series_download_dir = pathlib.Path(output_dir) / self.get_download_path(
             download_id
         )
         # Check if it exists already and skips
-        if len(list(series_download_dir.glob(f"*{file_format}"))) > 0 and not recompute:
+        if (
+            len(list(series_download_dir.glob(f"*{self._output_format}"))) > 0
+            and not recompute
+        ):
             logger.info(
                 f"Study {download_id} has been already downloaded in "
                 f"{series_download_dir}, skipping..."
@@ -276,7 +327,7 @@ class DicomDownloader:
             base_dict[self.series_instance_uid_field] = series_uid
 
         # Init the readers/writers
-        series_reader = sitk.ImageSeriesReader()
+        series_reader = sitk.ImageSeriesReader()  # type: ignore
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create the download dir
             current_tmp_dir = pathlib.Path(tmp_dir)
@@ -304,11 +355,11 @@ class DicomDownloader:
             progress_bar.close()
 
             # Get Series ID names from folder
-            series_uids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(current_tmp_dir))
+            series_uids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(current_tmp_dir))  # type: ignore
             logger.info(f"Study ID has {len(series_uids)} series.")
             for series in series_uids:
                 # Get the DICOMs corresponding to the series
-                files = series_reader.GetGDCMSeriesFileNames(
+                files = series_reader.GetGDCMSeriesFileNames(  # type: ignore
                     str(current_tmp_dir), series
                 )
                 current_dict = base_dict.copy()
@@ -320,18 +371,22 @@ class DicomDownloader:
                     with simpleitk_warning_file.open("w") as f, stdout_redirected(
                         f, stdout=sys.stderr
                     ):
-                        series_reader.SetFileNames(files)
-                        image = series_reader.Execute()
+                        series_reader.SetFileNames(files)  # type: ignore
+                        image = series_reader.Execute()  # type: ignore
                     with simpleitk_warning_file.open("r") as f:
                         content = f.read()
                     if "warning" in content.lower():
                         raise RuntimeError("SimpleITK " + content)
                     # Create the final output dir
                     series_download_dir.mkdir(exist_ok=True, parents=True)
-                    if self._output_format == "nifti":
+                    if self._output_format != ".dcm":
                         # Write series to nifti
                         sitk.WriteImage(
-                            image, str(series_download_dir / (series + ".nii.gz"))
+                            image,
+                            str(
+                                series_download_dir / (series + self._output_format),
+                            ),
+                            useCompression=self.use_compression,
                         )
                     else:
                         # We just copy the dicoms
@@ -341,15 +396,30 @@ class DicomDownloader:
                                 series_download_dir / f"{pathlib.Path(dcm_file).name}",
                             )
                 except Exception:
-                    logger.debug(traceback.format_exc())
-                    logger.info(f"Series {series} could not be stored.")
-                    current_dict[self.error_type_field] = "Storing Error"
+                    if self.turn_off_checks:
+                        if self._output_format != ".dcm":
+                            logger.info(
+                                f"Problems occurred when converting {series} to NIFTI, "
+                                f"it will be stored as DICOM instead."
+                            )
+                        series_download_dir.mkdir(exist_ok=True, parents=True)
+                        for dcm_file in files:
+                            shutil.copy2(
+                                dcm_file,
+                                series_download_dir / f"{pathlib.Path(dcm_file).name}",
+                            )
+                        current_dict[self.error_type_field] = "Storing Warning"
+                    else:
+                        logger.debug(traceback.format_exc())
+                        logger.info(f"Series {series} could not be stored.")
+                        current_dict[self.error_type_field] = "Storing Error"
                     current_dict[self.traceback_field] = traceback.format_exc()
                     error_series_info.append(current_dict)
-                    continue
+                    if not self.turn_off_checks:
+                        continue
 
                 # Store one DICOM to keep the file metadata
-                if save_metadata and self._output_format == "nifti":
+                if save_metadata and self._output_format != ".dcm":
                     shutil.copy2(
                         files[0],
                         series_download_dir / f"{series}_meta.dcm",
@@ -371,10 +441,11 @@ class DicomDownloader:
         study_uid_col: str = "study_instance_uid",
         series_uid_col: str = "series_instance_uid",
         skip_existing: bool = True,
-    ) -> pd.DataFrame:
+    ) -> Optional[pd.DataFrame]:
         """
         Go through the already downloaded data and check if there are some instances that have
-        not been stored in the mapping file. A new mapping file with the given name will be stored.
+        not been stored in the mapping file. A new mapping file will be returned. If the output
+        folder where the data is supposed to be stored does not exist or is empty, None is returned.
 
         :param df: The DataFrame that contains the studies that should be downloaded
         :param mapping_df: A DataFrame containing the generated mappings until now
@@ -382,12 +453,14 @@ class DicomDownloader:
         :param study_uid_col: The name of the StudyInstanceUID column of the DataFrame
         :param series_uid_col: The name of the SeriesInstanceUID column of the DataFrame
         :param skip_existing: Whether existing studies should be skipped
-        :return: The fixed mapping DataFrame
+        :return: The fixed mapping DataFrame or None (if output data does not exist)
         """
         output_dir = pathlib.Path(output_dir)
-        assert (
-            output_dir.exists()
-        ), "Cannot fix the mapping file if the output directory does not exist."
+        if not output_dir.exists() or not len(list(output_dir.glob("*"))):
+            warnings.warn(
+                "Cannot fix the mapping file if the output directory does not exist."
+            )
+            return None
         if mapping_df is None:
             mapping_df = pd.DataFrame()
         csv_rows = []
@@ -396,6 +469,7 @@ class DicomDownloader:
             download_id = DicomDownloader.get_download_id(
                 study_uid=getattr(row, study_uid_col),
                 series_uid=getattr(row, series_uid_col),
+                always_download_in_study_folder=self.always_download_in_study_folder,
             )
             series_download_dir = output_dir / self.get_download_path(download_id)
             # If the files have not been downloaded or
@@ -478,7 +552,7 @@ class DicomDownloader:
             series_uid_col is None or series_uid_col not in df.columns
         ):
             download_full_study = True
-            logging.warning(
+            warnings.warn(
                 "download_full_study = False will only download a specified series but "
                 "have not provided a valid Series UID column of the DataFrame, "
                 "as a result the full study will be downloaded."

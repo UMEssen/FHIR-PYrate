@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Any, Callable, Dict, List, Tuple
 
 from fhir_pyrate.util import FHIRObj
@@ -6,7 +7,7 @@ from fhir_pyrate.util import FHIRObj
 logger = logging.getLogger(__name__)
 
 
-def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> List[Dict]:
+def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> Dict[str, List[Dict]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes
@@ -15,13 +16,17 @@ def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> List[Dict]:
     :param col_sep: The separator to use to generate the column names for the DataFrame
     :return: A dictionary containing the parsed information
     """
-    records = []
+    records: Dict[str, List[Dict[str, Any]]] = {}
     for entry in bundle.entry or []:
+        resource = entry.resource
+        records.setdefault(resource.resourceType, [])
         base_dict: Dict[str, Any] = {}
         recurse_resource(
-            resource=entry.resource, base_dict=base_dict, field_name="", col_sep=col_sep
+            resource=resource, base_dict=base_dict, field_name="", col_sep=col_sep
         )
-        records.append(base_dict)
+        records[resource.resourceType].append(
+            {k: v for k, v in base_dict.items() if v is not None}
+        )
     return records
 
 
@@ -64,13 +69,13 @@ def recurse_resource(
 
 def parse_fhir_path(
     bundle: FHIRObj, compiled_fhir_paths: List[Tuple[str, Callable]]
-) -> List[Dict]:
+) -> Dict[str, List[Dict]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes, which have been specified using a list of compiled FHIRPath
     expressions (https://hl7.org/fhirpath/).
 
-    :param bundle: The bundle returned by the FHIR request
+    :param bundle: The bundle or resource returned by the FHIR request
     :param compiled_fhir_paths: A list of tuples of the form (column_name, compiled_fhir_paths),
     where column_name is the name of the future column, and fhir_paths is a compiled function
     that will be used to build that column and that was compiled from a FHIR path (
@@ -78,22 +83,26 @@ def parse_fhir_path(
     functions for notes on how to use the FHIR paths.
     :return: A dictionary containing the parsed information
     """
-    records = []
+    records: Dict[str, List[Dict[str, Any]]] = {}
     for entry in bundle.entry or []:
         resource = entry.resource
+        records.setdefault(resource.resourceType, [])
         base_dict: Dict[str, Any] = {}
         for name, compiled_path in compiled_fhir_paths:
             result = compiled_path(resource=resource.to_dict())
             if name in base_dict and base_dict[name] is not None and len(result) > 0:
-                logger.warning(
+                warnings.warn(
                     f"The field {name} has already been filled with {base_dict[name]}, "
                     f"so it will not be overwritten."
                 )
             if name not in base_dict or base_dict[name] is None:
                 base_dict[name] = result
-            if len(base_dict[name]) == 0:
-                base_dict[name] = None
-            elif len(base_dict[name]) == 1:
-                base_dict[name] = next(iter(base_dict[name]))
-        records.append(base_dict)
+            if isinstance(base_dict[name], List):
+                if len(base_dict[name]) == 0:
+                    base_dict[name] = None
+                elif len(base_dict[name]) == 1:
+                    base_dict[name] = next(iter(base_dict[name]))
+        records[resource.resourceType].append(
+            {k: v for k, v in base_dict.items() if v is not None}
+        )
     return records
