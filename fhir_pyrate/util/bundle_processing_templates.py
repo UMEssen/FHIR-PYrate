@@ -1,8 +1,12 @@
 import logging
 import warnings
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from fhir_pyrate.util import FHIRObj
+from fhir_pyrate.util.constants import FHIR_RESOURCES
+from fhir_pyrate.util.imports import optional_import
+
+fhirpathpy, _ = optional_import(module="fhirpathpy")
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +72,7 @@ def recurse_resource(
 
 
 def parse_fhir_path(
-    bundle: FHIRObj, compiled_fhir_paths: List[Tuple[str, Callable]]
+    bundle: FHIRObj, fhir_paths_with_name: List[Tuple[str, str]]
 ) -> Dict[str, List[Dict]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
@@ -76,10 +80,9 @@ def parse_fhir_path(
     expressions (https://hl7.org/fhirpath/).
 
     :param bundle: The bundle or resource returned by the FHIR request
-    :param compiled_fhir_paths: A list of tuples of the form (column_name, compiled_fhir_paths),
-    where column_name is the name of the future column, and fhir_paths is a compiled function
-    that will be used to build that column and that was compiled from a FHIR path (
-    https://hl7.org/fhirpath/). Please refer to the `bundles_to_dataframe`
+    :param fhir_paths_with_name: A list of tuples of the form (column_name, fhir_path),
+    where column_name is the name of the future column, and fhir_path is a FHIRPath expression
+    (https://hl7.org/fhirpath/). Please refer to the `bundles_to_dataframe`
     functions for notes on how to use the FHIR paths.
     :return: A dictionary containing the parsed information
     """
@@ -88,8 +91,12 @@ def parse_fhir_path(
         resource = entry.resource
         records.setdefault(resource.resourceType, [])
         base_dict: Dict[str, Any] = {}
-        for name, compiled_path in compiled_fhir_paths:
-            result = compiled_path(resource=resource.to_dict())
+        for name, fhirpath in fhir_paths_with_name:
+            first_path = fhirpath.split(".")[0]
+            # TODO: Is it enough to check if the first letter is capital instead of having a complete list?
+            if first_path in FHIR_RESOURCES and first_path != resource.resourceType:
+                continue
+            result = fhirpathpy.evaluate(resource=resource.to_dict(), path=fhirpath)
             if name in base_dict and base_dict[name] is not None and len(result) > 0:
                 warnings.warn(
                     f"The field {name} has already been filled with {base_dict[name]}, "
@@ -102,7 +109,5 @@ def parse_fhir_path(
                     base_dict[name] = None
                 elif len(base_dict[name]) == 1:
                     base_dict[name] = next(iter(base_dict[name]))
-        records[resource.resourceType].append(
-            {k: v for k, v in base_dict.items() if v is not None}
-        )
+        records[resource.resourceType].append({k: v for k, v in base_dict.items()})
     return records

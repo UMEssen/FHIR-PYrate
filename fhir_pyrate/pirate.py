@@ -1286,7 +1286,7 @@ class Pirate:
         self, fhir_paths: List[Union[str, Tuple[str, str]]]
     ) -> Callable:
         """
-        Prepares and compiles the FHIRPath and sets them as the processing function for building
+        Prepares the FHIRPath and sets them as the processing function for building
         the DataFrames.
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
@@ -1317,10 +1317,7 @@ class Pirate:
                             f"they are intended, you can silence the warning when "
                             f"initializing the class."
                         )
-        fhir_paths_with_name = [
-            (name, fhirpathpy.compile(path=path)) for name, path in fhir_paths_with_name
-        ]
-        return partial(parse_fhir_path, compiled_fhir_paths=fhir_paths_with_name)
+        return partial(parse_fhir_path, fhir_paths_with_name=fhir_paths_with_name)
 
     def _bundles_to_dataframe(
         self,
@@ -1376,9 +1373,7 @@ class Pirate:
                 results.setdefault(resource_type, [])
                 results[resource_type] += records
         dfs = {
-            resource_type: pd.DataFrame(results[resource_type]).dropna(
-                axis=1, how="all"
-            )
+            resource_type: pd.DataFrame(results[resource_type])
             for resource_type in results
         }
         if always_return_dict:
