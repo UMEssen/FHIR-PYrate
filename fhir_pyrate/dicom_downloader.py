@@ -629,8 +629,6 @@ class DicomDownloader:
                         total=len(df),
                         desc="Downloading Rows",
                     ):
-                        print(download_info)
-                        print(error_info)
                         if download_info is not None:
                             csv_rows += download_info
                         if error_info is not None:
