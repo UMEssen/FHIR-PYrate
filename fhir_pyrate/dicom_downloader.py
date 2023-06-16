@@ -1,6 +1,7 @@
 import hashlib
 import io
 import logging
+import multiprocessing
 import os
 import pathlib
 import platform
@@ -10,9 +11,11 @@ import tempfile
 import traceback
 import warnings
 from contextlib import contextmanager
+from functools import partial
 from types import TracebackType
 from typing import Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
 
+import numpy as np
 import pandas as pd
 import pydicom
 import requests
@@ -130,6 +133,7 @@ class DicomDownloader:
     study will always end up in the same folder.
     :param retry: This flag will set the retry parameter of the DicomWebClient, which activates
     HTTP retrying.
+    :param num_processes: The number of processes to run for downloading
     """
 
     ACCEPTED_FORMATS = {
@@ -160,6 +164,7 @@ class DicomDownloader:
         turn_off_checks: bool = False,
         always_download_in_study_folder: bool = False,
         retry: bool = False,
+        num_processes: int = 1,
     ):
         self.dicom_web_url = dicom_web_url
         self._close_session_on_exit = False
@@ -185,6 +190,7 @@ class DicomDownloader:
         self.turn_off_checks = turn_off_checks
         self.always_download_in_study_folder = always_download_in_study_folder
         self.hierarchical_storage = hierarchical_storage
+        self.num_processes = num_processes
 
     def set_output_format(self, new_output_format: str) -> None:
         """
@@ -503,6 +509,40 @@ class DicomDownloader:
         new_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         return new_df
 
+    def _download_helper(
+        self,
+        uids: Tuple[str, Optional[str]],
+        existing_ids: np.ndarray,
+        output_dir: pathlib.Path,
+        save_metadata: bool = True,
+    ) -> Tuple[Optional[List[Dict[str, str]]], Optional[List[Dict[str, str]]]]:
+        study_uid, series_uid = uids
+        with logging_redirect_tqdm():
+            try:
+                download_info, error_info = self.download_data(
+                    study_uid=study_uid,
+                    series_uid=series_uid,
+                    output_dir=output_dir,
+                    save_metadata=save_metadata,
+                    existing_ids=existing_ids,
+                )
+                return download_info, error_info
+            except KeyboardInterrupt:
+                return None, None
+            except Exception:
+                # If any error happens that is not caught, just go to the next one
+                logger.error(traceback.format_exc())
+                return None, [
+                    {
+                        self.study_instance_uid_field: study_uid,
+                        self.series_instance_uid_field: series_uid
+                        if series_uid
+                        else "",
+                        self.error_type_field: "Other Error",
+                        self.traceback_field: traceback.format_exc(),
+                    }
+                ]
+
     def download_data_from_dataframe(
         self,
         df: pd.DataFrame,
@@ -561,39 +601,36 @@ class DicomDownloader:
         # Create list of rows
         csv_rows = []
         error_rows = []
-        for row in tqdm(
-            df.itertuples(index=False), total=len(df), desc="Downloading Rows"
+
+        pool = multiprocessing.Pool(self.num_processes)
+        func = partial(
+            self._download_helper,
+            existing_ids=existing_ids,
+            output_dir=output_dir,
+            save_metadata=save_metadata,
+        )
+
+        rows = [
+            [
+                getattr(row, study_uid_col),
+                getattr(row, series_uid_col)
+                if not download_full_study and series_uid_col is not None
+                else None,
+            ]
+            for row in df.itertuples(index=False)
+        ]
+        for download_info, error_info in tqdm(
+            pool.imap(func, rows),
+            total=len(df),
+            desc="Downloading Rows",
         ):
-            with logging_redirect_tqdm():
-                try:
-                    download_info, error_info = self.download_data(
-                        study_uid=getattr(row, study_uid_col),
-                        series_uid=getattr(row, series_uid_col)
-                        if not download_full_study and series_uid_col is not None
-                        else None,
-                        output_dir=output_dir,
-                        save_metadata=save_metadata,
-                        existing_ids=existing_ids,
-                    )
-                except KeyboardInterrupt:
-                    break
-                except Exception:
-                    # If any error happens that is not caught, just go to the next one
-                    error_rows += [
-                        {
-                            self.study_instance_uid_field: getattr(row, study_uid_col),
-                            self.series_instance_uid_field: getattr(row, series_uid_col)
-                            if isinstance(series_uid_col, str)
-                            and getattr(row, series_uid_col) is not None
-                            else None,
-                            self.error_type_field: "Other Error",
-                            self.traceback_field: traceback.format_exc(),
-                        }
-                    ]
-                    logger.error(traceback.format_exc())
-                    continue
+            if download_info is not None:
                 csv_rows += download_info
+            if error_info is not None:
                 error_rows += error_info
+
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
+        pool.close()
+        pool.join()
         return new_mapping_df, error_df
