@@ -527,8 +527,6 @@ class DicomDownloader:
                     existing_ids=existing_ids,
                 )
                 return download_info, error_info
-            except KeyboardInterrupt:
-                return None, None
             except Exception:
                 # If any error happens that is not caught, just go to the next one
                 logger.error(traceback.format_exc())
@@ -619,15 +617,18 @@ class DicomDownloader:
             ]
             for row in df.itertuples(index=False)
         ]
-        for download_info, error_info in tqdm(
-            pool.imap(func, rows),
-            total=len(df),
-            desc="Downloading Rows",
-        ):
-            if download_info is not None:
-                csv_rows += download_info
-            if error_info is not None:
-                error_rows += error_info
+        try:
+            for download_info, error_info in tqdm(
+                pool.imap(func, rows),
+                total=len(df),
+                desc="Downloading Rows",
+            ):
+                if download_info is not None:
+                    csv_rows += download_info
+                if error_info is not None:
+                    error_rows += error_info
+        except KeyboardInterrupt:
+            logger.info("Keyboard Interrupt, terminating the pool.")
 
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
