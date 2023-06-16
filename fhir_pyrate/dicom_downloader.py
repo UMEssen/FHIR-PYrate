@@ -6,6 +6,7 @@ import os
 import pathlib
 import platform
 import shutil
+import signal
 import sys
 import tempfile
 import traceback
@@ -600,7 +601,6 @@ class DicomDownloader:
         csv_rows = []
         error_rows = []
 
-        pool = multiprocessing.Pool(self.num_processes)
         func = partial(
             self._download_helper,
             existing_ids=existing_ids,
@@ -617,21 +617,42 @@ class DicomDownloader:
             ]
             for row in df.itertuples(index=False)
         ]
-        try:
-            for download_info, error_info in tqdm(
-                pool.imap(func, rows),
-                total=len(df),
-                desc="Downloading Rows",
-            ):
-                if download_info is not None:
-                    csv_rows += download_info
-                if error_info is not None:
-                    error_rows += error_info
-        except KeyboardInterrupt:
-            logger.info("Keyboard Interrupt, terminating the pool.")
+        if self.num_processes > 1:
+            with multiprocessing.Pool(
+                self.num_processes,
+                initializer=signal.signal,
+                initargs=(signal.SIGINT, signal.SIG_IGN),
+            ) as pool:
+                try:
+                    for download_info, error_info in tqdm(
+                        pool.imap_unordered(func, rows),
+                        total=len(df),
+                        desc="Downloading Rows",
+                    ):
+                        print(download_info)
+                        print(error_info)
+                        if download_info is not None:
+                            csv_rows += download_info
+                        if error_info is not None:
+                            error_rows += error_info
+                except KeyboardInterrupt:
+                    logger.info("Keyboard Interrupt, terminating the pool.")
+        else:
+            try:
+                for row in tqdm(
+                    rows,
+                    total=len(df),
+                    desc="Downloading Rows",
+                ):
+                    download_info, error_info = func(row)
+                    if download_info is not None:
+                        csv_rows += download_info
+                    if error_info is not None:
+                        error_rows += error_info
+            except KeyboardInterrupt:
+                logger.info("Keyboard Interrupt, terminating the pool.")
 
         new_mapping_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         error_df = pd.DataFrame(error_rows)
-        pool.close()
-        pool.join()
+
         return new_mapping_df, error_df
