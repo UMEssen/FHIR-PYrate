@@ -1,7 +1,11 @@
-import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
+
+
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def string_from_column(
@@ -45,4 +49,4 @@ def get_datetime(dt_format: str = "%Y-%m-%d %H:%M:%S") -> str:
     :param dt_format: The format to use for the printing
     :return: The formatted string
     """
-    return datetime.datetime.now().strftime(dt_format)
+    return datetime.now().strftime(dt_format)

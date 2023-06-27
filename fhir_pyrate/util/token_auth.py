@@ -1,9 +1,11 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Optional, Union
 
 import jwt
 import requests
+
+from fhir_pyrate.util import now_utc
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +65,7 @@ class TokenAuth(requests.auth.AuthBase):
         )
         self.token: Optional[str] = None
         self._authenticate()
-        self.auth_time = datetime.now()
+        self.auth_time = now_utc()
 
     def _authenticate(self) -> None:
         """
@@ -109,7 +111,7 @@ class TokenAuth(requests.auth.AuthBase):
             )
             # If there is no expiration time return False
             # If we are already in the last 25% of the time return True
-            return refresh_interval is not None and datetime.now().timestamp() > (
+            return refresh_interval is not None and now_utc().timestamp() > (
                 decoded.get("exp") - refresh_interval
             )
         except jwt.exceptions.PyJWTError:
@@ -118,7 +120,7 @@ class TokenAuth(requests.auth.AuthBase):
             # If it has been specified and the time is almost run out
             return (
                 self._token_refresh_delta is not None
-                and (datetime.now() - self.auth_time) > self._token_refresh_delta
+                and (now_utc() - self.auth_time) > self._token_refresh_delta
             )
 
     def refresh_token(self, token: str = None) -> None:
@@ -139,10 +141,10 @@ class TokenAuth(requests.auth.AuthBase):
             else:
                 response.raise_for_status()
                 self.token = response.text
-            self.auth_time = datetime.now()
+            self.auth_time = now_utc()
         else:
             self._authenticate()
-            self.auth_time = datetime.now()
+            self.auth_time = now_utc()
 
     def _refresh_hook(
         self, response: requests.Response, *args: Any, **kwargs: Any
@@ -165,6 +167,7 @@ class TokenAuth(requests.auth.AuthBase):
             # then we should set how many times we have tried logging in
             if response.status_code == requests.codes.unauthorized:
                 if hasattr(response.request, "login_reattempted_times"):
+                    logger.info("Refreshing token because of unauthorized status.")
                     response.request.login_reattempted_times += 1  # type: ignore
                     if (
                         response.request.login_reattempted_times  # type: ignore
@@ -173,6 +176,9 @@ class TokenAuth(requests.auth.AuthBase):
                         response.raise_for_status()
                 else:
                     response.request.login_reattempted_times = 1  # type: ignore
+            else:
+                logger.info("Refreshing token refresh is required.")
+
             # If the token is None, then we were never actually authenticated
             if self.token is None:
                 response.raise_for_status()
