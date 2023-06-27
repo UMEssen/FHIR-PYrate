@@ -95,22 +95,18 @@ class TokenAuth(requests.auth.AuthBase):
         """
         # If the token is currently None, then it should always be refreshed
         if self.token is None:
-            logger.info("The token is none, refresh")
             return True
         try:
             decoded = jwt.decode(
                 jwt=self.token,
                 options={"verify_signature": False},
             )
-            logger.info("Decoded token")
-
             # Get 25 percent of the time we have in total
             refresh_interval = (
                 (decoded["exp"] - decoded["iat"]) / 4
                 if "exp" in decoded and "iat" in decoded
                 else None
             )
-            logger.info(f"Refresh interval {refresh_interval}")
             # If there is no expiration time return False
             # If we are already in the last 25% of the time return True
             return refresh_interval is not None and datetime.now().timestamp() > (
@@ -120,10 +116,6 @@ class TokenAuth(requests.auth.AuthBase):
             # If we are here it means that it is not a JWT token
             # If no user limit has been specified, then we do not refresh
             # If it has been specified and the time is almost run out
-            logger.info(
-                f"Token error, {self._token_refresh_delta}, "
-                f"{self._token_refresh_delta is not None and (datetime.now() - self.auth_time) > self._token_refresh_delta}"  # ignore
-            )
             return (
                 self._token_refresh_delta is not None
                 and (datetime.now() - self.auth_time) > self._token_refresh_delta
@@ -164,10 +156,6 @@ class TokenAuth(requests.auth.AuthBase):
         :param kwargs: Additional keyword arguments
         :return: The response of the request that will be sent
         """
-        logger.info(
-            f"Status == Unauth {response.status_code == requests.codes.unauthorized}"
-        )
-        logger.info(f"Ref required {self.is_refresh_required()}")
         if (
             # If we get an unauthorized or if we should refresh
             response.status_code == requests.codes.unauthorized
