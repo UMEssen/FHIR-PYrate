@@ -16,7 +16,6 @@ from functools import partial
 from types import TracebackType
 from typing import Dict, Generator, List, Optional, TextIO, Tuple, Type, Union
 
-import numpy as np
 import pandas as pd
 import pydicom
 import requests
@@ -513,7 +512,7 @@ class DicomDownloader:
     def _download_helper(
         self,
         uids: Tuple[str, Optional[str]],
-        existing_ids: np.ndarray,
+        existing_ids: Optional[List[str]],
         output_dir: pathlib.Path,
         save_metadata: bool = True,
     ) -> Tuple[Optional[List[Dict[str, str]]], Optional[List[Dict[str, str]]]]:
