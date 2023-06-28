@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Optional, Union
 
 import jwt
@@ -8,6 +8,10 @@ import requests
 from fhir_pyrate.util import now_utc
 
 logger = logging.getLogger(__name__)
+
+
+def utc_to_date(ts: Any) -> Any:
+    return datetime.utcfromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 class TokenAuth(requests.auth.AuthBase):
@@ -75,7 +79,9 @@ class TokenAuth(requests.auth.AuthBase):
         response = self._token_session.get(
             f"{self.auth_url}", auth=(self._username, self._password)
         )
+        logger.info(f"Status: {response.status_code}")
         response.raise_for_status()
+        logger.info("Setting new token successfully")
         self.token = response.text
 
     def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
@@ -85,6 +91,9 @@ class TokenAuth(requests.auth.AuthBase):
         :param r: The prepared request that should be sent
         :return: The prepared request
         """
+        logger.info(
+            f"Passing the token to the prepared request: {self.token[-10:] if self.token is not None else None}"
+        )
         r.headers.update({"Authorization": f"Bearer {self.token}"})
         return r
 
@@ -115,14 +124,17 @@ class TokenAuth(requests.auth.AuthBase):
             logger.info(
                 f"Checking if it is time to refresh with interval {refresh_interval}"
             )
-            logger.info(f"Current time: {now_utc().timestamp()}")
-            logger.info(f"Token expiry: {decoded.get('exp')}")
+            ts = now_utc().timestamp()
+
+            logger.info(f"Current time: {ts} = {utc_to_date(ts)}")
             logger.info(
-                f"Token expiry - refresh interval: {decoded.get('exp') - refresh_interval if refresh_interval is not None else None}"
+                f"Token expiry: {decoded.get('exp')} = {utc_to_date(decoded.get('exp'))}"
             )
             logger.info(
-                refresh_interval is not None
-                and now_utc().timestamp() > (decoded.get("exp") - refresh_interval)
+                f"Token expiry - refresh interval: {(decoded.get('exp') - refresh_interval) if refresh_interval is not None else None} = {utc_to_date(decoded.get('exp') - refresh_interval) if refresh_interval is not None else None}"
+            )
+            logger.info(
+                f"Refresh = {refresh_interval is not None and now_utc().timestamp() > (decoded.get('exp') - refresh_interval)}"
             )
             return refresh_interval is not None and now_utc().timestamp() > (
                 decoded.get("exp") - refresh_interval
@@ -158,9 +170,11 @@ class TokenAuth(requests.auth.AuthBase):
             else:
                 logger.info("Raising for status")
                 response.raise_for_status()
+                logger.info("Setting new token successfully")
                 self.token = response.text
             self.auth_time = now_utc()
         else:
+            logger.info("Authenticating again after expired token")
             self._authenticate()
             self.auth_time = now_utc()
 
