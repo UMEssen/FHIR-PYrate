@@ -1,7 +1,7 @@
 import hashlib
 import io
 import logging
-import multiprocessing
+import multiprocessing.dummy as multiprocessing
 import os
 import pathlib
 import platform

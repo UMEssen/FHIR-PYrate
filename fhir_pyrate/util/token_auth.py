@@ -5,7 +5,13 @@ from typing import Any, Optional, Union
 import jwt
 import requests
 
+from fhir_pyrate.util import now_utc
+
 logger = logging.getLogger(__name__)
+
+
+def utc_to_date(ts: Any) -> Any:
+    return datetime.utcfromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 class TokenAuth(requests.auth.AuthBase):
@@ -63,7 +69,7 @@ class TokenAuth(requests.auth.AuthBase):
         )
         self.token: Optional[str] = None
         self._authenticate()
-        self.auth_time = datetime.now()
+        self.auth_time = now_utc()
 
     def _authenticate(self) -> None:
         """
@@ -73,7 +79,9 @@ class TokenAuth(requests.auth.AuthBase):
         response = self._token_session.get(
             f"{self.auth_url}", auth=(self._username, self._password)
         )
+        logger.info(f"Status: {response.status_code}")
         response.raise_for_status()
+        logger.info("Setting new token successfully")
         self.token = response.text
 
     def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
@@ -83,6 +91,9 @@ class TokenAuth(requests.auth.AuthBase):
         :param r: The prepared request that should be sent
         :return: The prepared request
         """
+        logger.info(
+            f"Passing the token to the prepared request: {self.token[-10:] if self.token is not None else None}"
+        )
         r.headers.update({"Authorization": f"Bearer {self.token}"})
         return r
 
@@ -95,6 +106,7 @@ class TokenAuth(requests.auth.AuthBase):
         """
         # If the token is currently None, then it should always be refreshed
         if self.token is None:
+            logger.info("Token is none, needs refreshing")
             return True
         try:
             decoded = jwt.decode(
@@ -107,18 +119,45 @@ class TokenAuth(requests.auth.AuthBase):
                 if "exp" in decoded and "iat" in decoded
                 else None
             )
+            # raise jwt.exceptions.PyJWTError()
             # If there is no expiration time return False
             # If we are already in the last 25% of the time return True
-            return refresh_interval is not None and datetime.now().timestamp() > (
+            logger.info(
+                f"Checking if it is time to refresh with interval {refresh_interval}"
+            )
+            ts = now_utc().timestamp()
+
+            logger.info(f"Current time: {ts} = {utc_to_date(ts)}")
+            logger.info(
+                f"Token expiry: {decoded.get('exp')} = {utc_to_date(decoded.get('exp'))}"
+            )
+            logger.info(
+                f"Token expiry - refresh interval: {(decoded.get('exp') - refresh_interval) if refresh_interval is not None else None} = {utc_to_date(decoded.get('exp') - refresh_interval) if refresh_interval is not None else None}"
+            )
+            logger.info(
+                f"Refresh = {refresh_interval is not None and now_utc().timestamp() > (decoded.get('exp') - refresh_interval)}"
+            )
+            return refresh_interval is not None and now_utc().timestamp() > (
                 decoded.get("exp") - refresh_interval
             )
         except jwt.exceptions.PyJWTError:
             # If we are here it means that it is not a JWT token
             # If no user limit has been specified, then we do not refresh
             # If it has been specified and the time is almost run out
+            print("Not a JWT token, checking if we should refresh")
+            print(now_utc())
+            print(self.auth_time)
+            print(self._token_refresh_delta)
+            print(
+                "Refresh = ",
+                (
+                    self._token_refresh_delta is not None
+                    and (now_utc() - self.auth_time) > self._token_refresh_delta
+                ),
+            )
             return (
                 self._token_refresh_delta is not None
-                and (datetime.now() - self.auth_time) > self._token_refresh_delta
+                and (now_utc() - self.auth_time) > self._token_refresh_delta
             )
 
     def refresh_token(self, token: str = None) -> None:
@@ -132,17 +171,23 @@ class TokenAuth(requests.auth.AuthBase):
         if token is not None:
             self.token = token
         elif self.refresh_url is not None:
+            logger.info(f"Refreshing with {self.refresh_url}")
             response = self._token_session.get(f"{self.refresh_url}")
             # Was not refreshed on time
+            logger.info(f"Status: {response.status_code}")
             if response.status_code == requests.codes.unauthorized:
+                logger.info("Is unauthorized, authenticating")
                 self._authenticate()
             else:
+                logger.info("Raising for status")
                 response.raise_for_status()
+                logger.info("Setting new token successfully")
                 self.token = response.text
-            self.auth_time = datetime.now()
+            self.auth_time = now_utc()
         else:
+            logger.info("Authenticating again after expired token")
             self._authenticate()
-            self.auth_time = datetime.now()
+            self.auth_time = now_utc()
 
     def _refresh_hook(
         self, response: requests.Response, *args: Any, **kwargs: Any
@@ -165,6 +210,7 @@ class TokenAuth(requests.auth.AuthBase):
             # then we should set how many times we have tried logging in
             if response.status_code == requests.codes.unauthorized:
                 if hasattr(response.request, "login_reattempted_times"):
+                    logger.info("Refreshing token because of unauthorized status.")
                     response.request.login_reattempted_times += 1  # type: ignore
                     if (
                         response.request.login_reattempted_times  # type: ignore
@@ -173,6 +219,9 @@ class TokenAuth(requests.auth.AuthBase):
                         response.raise_for_status()
                 else:
                     response.request.login_reattempted_times = 1  # type: ignore
+            else:
+                logger.info("Refreshing token is required.")
+
             # If the token is None, then we were never actually authenticated
             if self.token is None:
                 response.raise_for_status()
