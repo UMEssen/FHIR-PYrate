@@ -38,11 +38,6 @@ our institute. If there is anything in the code that only applies to our server,
 problems with the authentication (or anything else really), please just create an issue or
 [email us](mailto:giulia.baldini@uk-essen.de).
 
-<br />
-<div align="center">
-  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/resources.svg" alt="Resources" width="630" height="385">
-</div>
-
 <!-- TABLE OF CONTENTS -->
 Table of Contents:
 
