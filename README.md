@@ -8,7 +8,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/UMEssen/FHIR-PYrate">
-    <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/logo.svg" alt="Logo" width="440" height="338">
+    <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/logo.svg" alt="Logo" width="600">
   </a>
 </div>
 
