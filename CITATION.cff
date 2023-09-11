@@ -3,7 +3,7 @@ title: >-
   FHIR-PYrate: A Data Science Friendly Python Package to Query FHIR Servers
 message: 'If you use FHIR-PYrate, please cite it as below.'
 type: software
-doi: 10.5281/zenodo.7025226
+doi: 10.1186/s12913-023-09498-1
 authors:
   - family-names: Hosch
     given-names: René
