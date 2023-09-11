@@ -15,10 +15,9 @@
 This package is meant to provide a simple abstraction to query and structure FHIR resources as
 pandas DataFrames. Want to use R instead? Try out [fhircrackr](https://github.com/POLAR-fhiR/fhircrackr)!
 
-If you use this package, please cite:
-```
+**If you use this package, please cite:**
+
 Hosch, R., Baldini, G., Parmar, V. et al. FHIR-PYrate: a data science friendly Python package to query FHIR servers. BMC Health Serv Res 23, 734 (2023). https://doi.org/10.1186/s12913-023-09498-1
-```
 
 There are four main classes:
 * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/ahoy.py): Authenticate on the FHIR API
