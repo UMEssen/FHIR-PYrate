@@ -11,6 +11,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type, Union
 
+import fhirpathpy
 import pandas as pd
 import requests
 from dateutil.parser import parse
@@ -22,9 +23,6 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from fhir_pyrate import Ahoy
 from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
-from fhir_pyrate.util.imports import optional_import
-
-fhirpathpy, _ = optional_import(module="fhirpathpy")
 
 logger = logging.getLogger(__name__)
 

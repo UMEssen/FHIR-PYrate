@@ -717,13 +717,13 @@ devel = ["colorama", "json-spec", "jsonschema", "pylint", "pytest", "pytest-benc
 
 [[package]]
 name = "fhirpathpy"
-version = "0.1.2"
+version = "0.2.2"
 description = "FHIRPath implementation in Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "fhirpathpy-0.1.2-py3-none-any.whl", hash = "sha256:47f9abd27e378ac0aa7ac465eadff56f1cfa74a53a16b7ec76a03b00ec71a6ef"},
-    {file = "fhirpathpy-0.1.2.tar.gz", hash = "sha256:0ade7a096cfc9398aff05dec8fb0369532a78ac8ebe7a9944bf9f0956ce817ad"},
+    {file = "fhirpathpy-0.2.2-py3-none-any.whl", hash = "sha256:add2c54c5d315cf73684d702da1fee6b6a7068f0477e809935dc4118410d908e"},
+    {file = "fhirpathpy-0.2.2.tar.gz", hash = "sha256:3965db763337e9fccaca5508b7ec27d777c4db2158e323f9bf49582f8d754da3"},
 ]
 
 [package.dependencies]
@@ -3160,4 +3160,4 @@ miner = ["spacy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "4ba6e1d3d57fdd3cf21232f44111614e0f93c41109bda4df60a24070a4fe6c8f"
+content-hash = "f789b3355599742abdc392ec51d4ad46d5df46e56b2071ffa6f2cd8eaf01a9ee"
