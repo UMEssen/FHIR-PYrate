@@ -5,12 +5,7 @@
 [![DOI](https://zenodo.org/badge/456893108.svg)](https://zenodo.org/badge/latestdoi/456893108)
 
 <!-- PROJECT LOGO -->
-<br />
-<div align="center">
-  <a href="https://github.com/UMEssen/FHIR-PYrate">
-    <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/logo.svg" alt="Logo" width="600">
-  </a>
-</div>
+![Pyrate-Banner](images/pyrate-banner.png)
 
 This package is meant to provide a simple abstraction to query and structure FHIR resources as
 pandas DataFrames. Want to use R instead? Try out [fhircrackr](https://github.com/POLAR-fhiR/fhircrackr)!
