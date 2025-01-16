@@ -3,6 +3,7 @@
 [![Stable Version](https://img.shields.io/pypi/v/fhir-pyrate?label=stable)](https://pypi.org/project/fhir-pyrate/)
 [![Pre-release Version](https://img.shields.io/github/v/release/UMEssen/fhir-pyrate?label=pre-release&include_prereleases&sort=semver)](https://pypi.org/project/fhir-pyrate/#history)
 [![DOI](https://zenodo.org/badge/456893108.svg)](https://zenodo.org/badge/latestdoi/456893108)
+[![Affiliated with RTG WisPerMed](https://img.shields.io/badge/Affiliated-RTG%202535%20WisPerMed-blue)](https://wispermed.org/)
 
 <!-- PROJECT LOGO -->
 ![Pyrate-Banner](images/pyrate-banner.png)
