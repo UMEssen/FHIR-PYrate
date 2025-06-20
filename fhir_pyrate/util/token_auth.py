@@ -37,10 +37,10 @@ class TokenAuth(requests.auth.AuthBase):
         username: str,
         password: str,
         auth_url: str,
-        refresh_url: str = None,
-        session: requests.Session = None,
+        refresh_url: Optional[str] = None,
+        session: Optional[requests.Session] = None,
         max_login_attempts: int = 5,
-        token_refresh_delta: Union[int, timedelta] = None,
+        token_refresh_delta: Optional[Union[int, timedelta]] = None,
     ) -> None:
         self._username = username
         self._password = password
@@ -69,7 +69,7 @@ class TokenAuth(requests.auth.AuthBase):
 
     def _authenticate(self) -> None:
         """
-        Authenticates the user using the authentication URL and sets the token.
+        Authenticate the user using the authentication URL and sets the token.
         """
         # Authentication to get the token
         response = self._token_session.get(
@@ -80,7 +80,7 @@ class TokenAuth(requests.auth.AuthBase):
 
     def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
         """
-        Sets the necessary authentication header of the current request.
+        Set the necessary authentication header of the current request.
 
         :param r: The prepared request that should be sent
         :return: The prepared request
@@ -90,7 +90,7 @@ class TokenAuth(requests.auth.AuthBase):
 
     def is_refresh_required(self) -> bool:
         """
-        Computes whether the token should be refreshed according to the given token and to the
+        Compute whether the token should be refreshed according to the given token and to the
         _token_refresh_delta variable.
 
         :return: Whether the token is about to expire and should thus be refreshed
@@ -123,7 +123,7 @@ class TokenAuth(requests.auth.AuthBase):
                 and (now_utc() - self.auth_time) > self._token_refresh_delta
             )
 
-    def refresh_token(self, token: str = None) -> None:
+    def refresh_token(self, token: Optional[str] = None) -> None:
         """
         Refresh the current session either by logging in again or by refreshing the token.
 
@@ -150,7 +150,7 @@ class TokenAuth(requests.auth.AuthBase):
         self, response: requests.Response, *args: Any, **kwargs: Any
     ) -> Optional[requests.Response]:
         """
-        Hook that is called after every request, it checks whether the login was successful and
+        Check whether the login was successful and
         if it was not, it either refreshes the token or authenticates the user again.
 
         :param response: The received response
@@ -166,16 +166,14 @@ class TokenAuth(requests.auth.AuthBase):
             # If the state is unauthorized,
             # then we should set how many times we have tried logging in
             if response.status_code == requests.codes.unauthorized:
-                if hasattr(response.request, "login_reattempted_times"):
-                    logger.info("Refreshing token because of unauthorized status.")
-                    response.request.login_reattempted_times += 1  # type: ignore
-                    if (
-                        response.request.login_reattempted_times  # type: ignore
-                        >= self._max_login_attempts
-                    ):
-                        response.raise_for_status()
-                else:
-                    response.request.login_reattempted_times = 1  # type: ignore
+                login_attempts: int = getattr(
+                    response.request, "login_reattempted_times", 0
+                )
+                logger.info("Refreshing token because of unauthorized status.")
+                login_attempts += 1
+                if login_attempts >= self._max_login_attempts:
+                    response.raise_for_status()
+                setattr(response.request, "login_reattempted_times", login_attempts)  # noqa
             else:
                 logger.info("Refreshing token refresh is required.")
 

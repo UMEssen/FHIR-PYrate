@@ -63,6 +63,7 @@ lint.select = [
   "W",   # pycodestyle warnings
 ]
 lint.ignore = [
+  "C901",    # Too complex
   "D100",    # Missing docstring in public module
   "D101",    # Missing docstring in public class
   "D104",    # Missing docstring in public package
@@ -76,13 +77,23 @@ lint.unfixable = [
 lint.pydocstyle.convention = "google"
 
 [tool.mypy]
+# Ensure full coverage
+check_untyped_defs = true
 disallow_untyped_defs = true
-disallow_untyped_calls = true
-ignore_missing_imports = true
-warn_no_return = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+
+# Restrict dynamic typing
+disallow_any_generics = true
+disallow_subclassing_any = true
 warn_return_any = true
-warn_unreachable = true
+
+# Know exactly what you're doing
+warn_redundant_casts = true
+warn_unused_ignores = true
 warn_unused_configs = true
+warn_unreachable = true
+show_error_codes = true
 
 [virtualenvs]
 create = true

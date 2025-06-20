@@ -4,7 +4,7 @@ import re
 import tempfile
 import time
 import unittest
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -51,8 +51,8 @@ def decode_text(text: str) -> str:
     return str(div.text)
 
 
-def get_diagnostic_text(bundle: FHIRObj) -> Dict[str, List[Dict]]:
-    records: Dict[str, List[Dict]] = {"DiagnosticReport": []}
+def get_diagnostic_text(bundle: FHIRObj) -> Dict[str, List[Dict[str, Any]]]:
+    records: Dict[str, List[Dict[str, Any]]] = {"DiagnosticReport": []}
     for entry in bundle.entry or []:
         resource = entry.resource
         records["DiagnosticReport"].append(
@@ -67,8 +67,8 @@ def get_diagnostic_text(bundle: FHIRObj) -> Dict[str, List[Dict]]:
     return records
 
 
-def get_diagnostic_text_list(bundle: FHIRObj) -> List[Dict]:
-    records: List[Dict] = []
+def get_diagnostic_text_list(bundle: FHIRObj) -> List[Dict[str, Any]]:
+    records: List[Dict[str, Any]] = []
     for entry in bundle.entry or []:
         resource = entry.resource
         records.append(
@@ -83,8 +83,8 @@ def get_diagnostic_text_list(bundle: FHIRObj) -> List[Dict]:
     return records
 
 
-def get_observation_info(bundle: FHIRObj) -> Dict[str, List[Dict]]:
-    records: Dict[str, List[Dict]] = {"Observation": []}
+def get_observation_info(bundle: FHIRObj) -> Dict[str, List[Dict[str, Any]]]:
+    records: Dict[str, List[Dict[str, Any]]] = {"Observation": []}
     for entry in bundle.entry or []:
         resource = entry.resource
         # Store the ID
@@ -262,9 +262,9 @@ class ExampleTests(unittest.TestCase):
         )
         assert isinstance(observation_values, pd.DataFrame)
         assert len(observation_values) == 1
-        assert (
-            observation_values.iloc[0, 2] == 6.079781499882176
-        ), observation_values.iloc[0, 2]
+        assert observation_values.iloc[0, 2] == 6.079781499882176, (
+            observation_values.iloc[0, 2]
+        )
 
     def testExample3(self) -> None:
         condition_df = self.search.steal_bundles_to_dataframe(
@@ -392,14 +392,14 @@ class TestPirate(unittest.TestCase):
             )
             trade_df = pd.DataFrame(["18262-6", "2571-8"], columns=["code"])
             init = time.time()
-            params = dict(
-                df=trade_df,
-                resource_type="Observation",
-                df_constraints={"code": "code"},
-                request_params={"_lastUpdated": "ge2018"},
-                with_ref=False,  # TODO: It seems like this is much faster
-                build_df_after_query=False,
-            )
+            params = {
+                "df": trade_df,
+                "resource_type": "Observation",
+                "df_constraints": {"code": "code"},
+                "request_params": {"_lastUpdated": "ge2018"},
+                "with_ref": False,  # TODO: It seems like this is much faster
+                "build_df_after_query": False,
+            }
             obs_df_1 = search.trade_rows_for_dataframe(**params)
             assert isinstance(obs_df_1, pd.DataFrame)
             time_1 = time.time() - init

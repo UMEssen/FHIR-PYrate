@@ -40,7 +40,7 @@ def optional_import(
     allow_namespace_pkg: bool = False,
 ) -> Tuple[Any, bool]:
     """
-    Imports an optional module specified by `module` string.
+    Import an optional module specified by `module` string.
     Any importing related exceptions will be stored, and exceptions raise lazily
     when attempting to use the failed-to-import module.
 
@@ -100,14 +100,14 @@ def optional_import(
 
         def __getattr__(self, name: str) -> str:
             """
-            Raises:
+            Raise:
                 OptionalImportError: When you call this method.
             """
             raise self._exception
 
         def __call__(self, *_args: Any, **_kwargs: Any) -> str:
             """
-            Raises:
+            Raise:
                 OptionalImportError: When you call this method.
             """
             raise self._exception

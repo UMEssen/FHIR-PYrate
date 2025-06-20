@@ -9,7 +9,21 @@ import warnings
 from functools import partial
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeAlias,
+    TypeVar,
+    Union,
+)
 
 import pandas as pd
 import requests
@@ -24,6 +38,10 @@ from fhir_pyrate.util import FHIRObj, string_from_column
 from fhir_pyrate.util.bundle_processing_templates import flatten_data, parse_fhir_path
 from fhir_pyrate.util.imports import optional_import
 
+TParam = TypeVar("TParam")
+TFHIRObj = TypeVar("TFHIRObj", bound=FHIRObj)
+ProcessFunc: TypeAlias = Callable[[FHIRObj], Any]
+
 # Note to people from the future. This actually should be an optional import to avoid that, if people want to use another version of antlr, this creates crazy errors that the version does not match. In such cases, it is not possible to use fhirpathpy, but the processing functions can still be used.
 fhirpathpy, _ = optional_import(module="fhirpathpy")
 
@@ -32,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 def create_key(request: requests.PreparedRequest, **kwargs: Any) -> str:
     """
-    Creates a unique key for each request URL.
+    Create a unique key for each request URL.
 
     :param request: The request to create a key for
     :param kwargs: Unused, needed for compatibility with the library
@@ -76,7 +94,7 @@ class Pirate:
     :param optional_get_params: Optional parameters that will be passed to the session's get calls
     """
 
-    FHIRPATH_INVALID_TOKENS = [
+    FHIRPATH_INVALID_TOKENS: ClassVar[Tuple[str, ...]] = (
         "div",
         "mod",
         "in",
@@ -84,7 +102,7 @@ class Pirate:
         "or",
         "xor",
         "implies",
-    ]
+    )
 
     def __init__(
         self,
@@ -93,14 +111,14 @@ class Pirate:
         num_processes: int = 1,
         print_request_url: bool = False,
         time_format: str = "%Y-%m-%dT%H:%M",
-        default_count: int = None,
-        cache_folder: Union[str, Path] = None,
+        default_count: Optional[int] = None,
+        cache_folder: Optional[Union[str, Path]] = None,
         cache_expiry_time: Union[datetime.datetime, int] = -1,  # -1 = does not expire
-        retry_requests: Retry = None,
+        retry_requests: Optional[Retry] = None,
         disable_multiprocessing_requests: bool = False,
         disable_multiprocessing_build: bool = False,
         silence_fhirpath_warning: bool = False,
-        optional_get_params: Dict[Any, Any] = None,
+        optional_get_params: Optional[Dict[Any, Any]] = None,
     ):
         # Remove the last character if they added it
         url_search = re.search(
@@ -182,7 +200,7 @@ class Pirate:
     def get_bundle_total(
         self,
         resource_type: str,
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         count_entries: bool = False,
     ) -> Optional[int]:
         """
@@ -206,11 +224,11 @@ class Pirate:
     def steal_bundles(
         self,
         resource_type: str,
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         num_pages: int = -1,
     ) -> Generator[FHIRObj, None, int]:
         """
-        Executes a request, iterates through the result pages and returns all the bundles as a
+        Execute a request, iterates through the result pages and returns all the bundles as a
         generator.
 
         :param resource_type: The resource to be queried, e.g. DiagnosticReport
@@ -233,14 +251,14 @@ class Pirate:
     def steal_bundles_to_dataframe(
         self,
         resource_type: str,
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         num_pages: int = -1,
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        process_function: ProcessFunc = flatten_data,
+        fhir_paths: Optional[List[Union[str, Tuple[str, str]]]] = None,
         build_df_after_query: bool = False,
     ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
-        Executes a request, iterates through the result pages, and builds a DataFrame with their
+        Execute a request, iterates through the result pages, and builds a DataFrame with their
         information. The DataFrames are either built after each
         bundle is retrieved, or after we collected all bundles.
 
@@ -279,10 +297,10 @@ class Pirate:
         time_attribute_name: str,
         date_init: Union[str, datetime.date],
         date_end: Union[str, datetime.date],
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
     ) -> Generator[FHIRObj, None, int]:
         """
-        Uses the multiprocessing module to speed up some queries. The time frame is
+        Use the multiprocessing module to speed up some queries. The time frame is
         divided into multiple time spans (as many as there are processes) and each smaller
         time frame is investigated simultaneously.
 
@@ -310,13 +328,13 @@ class Pirate:
         time_attribute_name: str,
         date_init: Union[str, datetime.date],
         date_end: Union[str, datetime.date],
-        request_params: Dict[str, Any] = None,
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        request_params: Optional[Dict[str, Any]] = None,
+        process_function: ProcessFunc = flatten_data,
+        fhir_paths: Optional[List[Union[str, Tuple[str, str]]]] = None,
         build_df_after_query: bool = False,
     ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
-        Uses the multiprocessing module to speed up some queries. The time frame is
+        Use the multiprocessing module to speed up some queries. The time frame is
         divided into multiple time spans (as many as there are processes) and each smaller
         time frame is investigated simultaneously. Finally, it builds a DataFrame with the
         information from all timespans. The DataFrames are either built after each
@@ -360,7 +378,7 @@ class Pirate:
         df_constraints: Dict[
             str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
         ],
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         num_pages: int = -1,
     ) -> Generator[FHIRObj, None, int]:
         """
@@ -401,12 +419,12 @@ class Pirate:
         df_constraints: Dict[
             str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
         ],
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
-        request_params: Dict[str, Any] = None,
+        process_function: ProcessFunc = flatten_data,
+        fhir_paths: Optional[List[Union[str, Tuple[str, str]]]] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         num_pages: int = -1,
         with_ref: bool = True,
-        with_columns: List[Union[str, Tuple[str, str]]] = None,
+        with_columns: Optional[List[Union[str, Tuple[str, str]]]] = None,
         build_df_after_query: bool = False,
     ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
@@ -552,7 +570,7 @@ class Pirate:
             ):
                 # If we don't want multiprocessing
                 for param, input_param in tqdm(
-                    zip(params_per_sample, input_params_per_sample),
+                    zip(params_per_sample, input_params_per_sample, strict=False),
                     total=len(params_per_sample),
                     desc=tqdm_text,
                 ):
@@ -576,7 +594,7 @@ class Pirate:
                 pool = multiprocessing.Pool(self.num_processes)
                 results = []
                 for param, input_param in tqdm(
-                    zip(params_per_sample, input_params_per_sample),
+                    zip(params_per_sample, input_params_per_sample, strict=False),
                     total=len(params_per_sample),
                     desc=tqdm_text,
                 ):
@@ -585,13 +603,13 @@ class Pirate:
                         (
                             pool.apply_async(
                                 self._bundles_to_dataframe,
-                                kwds=dict(
-                                    bundles=[b for b in self._get_bundles(**param)],
-                                    process_function=process_function,
-                                    build_df_after_query=False,
-                                    disable_multiprocessing=True,
-                                    always_return_dict=True,
-                                ),
+                                kwds={
+                                    "bundles": list(self._get_bundles(**param)),
+                                    "process_function": process_function,
+                                    "build_df_after_query": False,
+                                    "disable_multiprocessing": True,
+                                    "always_return_dict": True,
+                                },
                             ),
                             input_param,
                         )
@@ -613,13 +631,13 @@ class Pirate:
                 resource_type: pd.concat(final_dfs[resource_type], ignore_index=True)
                 for resource_type in final_dfs
             }
-            return list(dfs.values())[0] if len(dfs) == 1 else dfs
+            return next(iter(dfs.values())) if len(dfs) == 1 else dfs
 
     def bundles_to_dataframe(
         self,
         bundles: Union[List[FHIRObj], Generator[FHIRObj, None, int]],
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        process_function: ProcessFunc = flatten_data,
+        fhir_paths: Optional[List[Union[str, Tuple[str, str]]]] = None,
     ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
         Convert a bundle into a DataFrame using either the `flatten_data` function (default),
@@ -786,7 +804,7 @@ class Pirate:
     def _adjust_df_constraints(
         df_constraints: Dict[
             str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
-        ]
+        ],
     ) -> Dict[str, List[Tuple[str, str]]]:
         """
         Adjust the constraint dictionary to always have the same structure, which makes it easier
@@ -838,7 +856,7 @@ class Pirate:
         df_constraints: Dict[str, List[Tuple[str, str]]],
     ) -> List[Dict[str, List[str]]]:
         """
-        Builds the request parameters for each sample by checking the constraint set on each row.
+        Build the request parameters for each sample by checking the constraint set on each row.
         The resulting request parameters are given by the general `request_params` and by the
         constraint given by each row. E.g. if df_constraints = {"subject": "patient_id"}, then
         the resulting list will contain {"subject": row.patient_id} for each row of the DataFrame.
@@ -914,7 +932,7 @@ class Pirate:
 
     def _get_response(self, request_url: str) -> Optional[FHIRObj]:
         """
-        Performs the API request and returns the response as a dictionary.
+        Perform the API request and returns the response as a dictionary.
 
         :param request_url: The request string
         :return: A FHIR bundle
@@ -988,13 +1006,13 @@ class Pirate:
     def _get_bundles(
         self,
         resource_type: str,
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         num_pages: int = -1,
         silence_tqdm: bool = False,
         tqdm_df_build: bool = False,
     ) -> Generator[FHIRObj, None, int]:
         """
-        Executes a request, iterates through the result pages and returns all the bundles as a
+        Execute a request, iterates through the result pages and returns all the bundles as a
         generator.
         Additionally, some checks are performed, and the corresponding warnings are returned:
         - Whether a sorting has been defined
@@ -1034,7 +1052,8 @@ class Pirate:
             warnings.warn(
                 f"We detected multiple pages (approximately {bundle_total} pages) but "
                 f"no sorting method has been defined, which may yield incorrect results. "
-                f"We will set the sorting parameter to _id."
+                f"We will set the sorting parameter to _id.",
+                stacklevel=2,
             )
             current_params["_sort"] = "_id"
             request_params_string = self._concat_request_params(current_params)
@@ -1083,7 +1102,7 @@ class Pirate:
         tqdm_df_build: bool,
     ) -> Generator[FHIRObj, None, int]:
         """
-        Wrapper function that sets the `time_attribute_name` date parameters for the
+        Set the `time_attribute_name` date parameters for the
         `sail_through_search_space function`.
         """
         request_params[time_attribute_name] = (
@@ -1099,9 +1118,11 @@ class Pirate:
         )
 
     @staticmethod
-    def _generator_to_list(f: Callable, *args: Any, **kwargs: Any) -> List[FHIRObj]:
+    def _generator_to_list(
+        f: Callable[..., Iterable[TFHIRObj]], *args: Any, **kwargs: Any
+    ) -> List[FHIRObj]:
         """
-        Wrapper function that converts the result of a function returning a generator to a list.
+        Convert the result of a function returning a generator to a list.
         """
         return list(f(*args, **kwargs))
 
@@ -1111,7 +1132,7 @@ class Pirate:
 
     def _run_multiquery(
         self,
-        func: Callable,
+        func: Callable[[TParam], Iterable[TFHIRObj]],
         query_params: List[Any],
         tqdm_text: str,
     ) -> Generator[FHIRObj, None, int]:
@@ -1142,11 +1163,11 @@ class Pirate:
         time_attribute_name: str,
         date_init: Union[str, datetime.date],
         date_end: Union[str, datetime.date],
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         tqdm_df_build: bool = False,
     ) -> Generator[FHIRObj, None, int]:
         """
-        Uses the multiprocessing module to speed up some queries. The time frame is
+        Use the multiprocessing module to speed up some queries. The time frame is
         divided into multiple time spans (as many as there are processes) and each smaller
         time frame is investigated simultaneously.
 
@@ -1172,7 +1193,8 @@ class Pirate:
                 warnings.warn(
                     f"Detected use of parameter {time_attribute_name} "
                     f"in the request parameters. Please use the date_init (inclusive) and "
-                    f"date_end (exclusive) parameters instead."
+                    f"date_end (exclusive) parameters instead.",
+                    stacklevel=2,
                 )
                 # Remove all elements that refer to a date
                 request_params = {
@@ -1192,7 +1214,7 @@ class Pirate:
             )
             # Divide the current time period into smaller spans
             timespans = self._get_timespan_list(date_init, date_end)
-            func: Callable = partial(
+            func = partial(
                 self._get_bundles_for_timespan,
                 resource_type,
                 request_params,
@@ -1216,7 +1238,7 @@ class Pirate:
         df_constraints: Dict[
             str, Union[Union[str, Tuple[str, str]], List[Union[str, Tuple[str, str]]]]
         ],
-        request_params: Dict[str, Any] = None,
+        request_params: Optional[Dict[str, Any]] = None,
         num_pages: int = -1,
         tqdm_df_build: bool = False,
     ) -> Generator[FHIRObj, None, int]:
@@ -1249,7 +1271,7 @@ class Pirate:
                 request_params=request_params,
                 df_constraints=self._adjust_df_constraints(df_constraints),
             )
-            func: Callable = partial(
+            func = partial(
                 self._get_bundles,
                 resource_type,
                 num_pages=num_pages,
@@ -1281,16 +1303,17 @@ class Pirate:
             if key_mapping[key] in df.columns:
                 warnings.warn(
                     f"A column with name {key_mapping[key]} already exists in the output"
-                    f"DataFrame, and the column {key} will not be copied."
+                    f"DataFrame, and the column {key} will not be copied.",
+                    stacklevel=2,
                 )
             else:
                 df[key_mapping[key]] = value
 
     def _set_up_fhirpath_function(
         self, fhir_paths: List[Union[str, Tuple[str, str]]]
-    ) -> Callable:
+    ) -> ProcessFunc:
         """
-        Prepares and compiles the FHIRPath and sets them as the processing function for building
+        Prepare and compile the FHIRPath and sets them as the processing function for building
         the DataFrames.
         :param fhir_paths: A list of FHIR paths (https://hl7.org/fhirpath/) to be used to build the
         DataFrame, alternatively, a list of tuples can be used to specify the column name of the
@@ -1319,17 +1342,18 @@ class Pirate:
                             f"If you really want to do this, please use processing functions "
                             f"instead. If you are using the FHIRPath expressions correctly as "
                             f"they are intended, you can silence the warning when "
-                            f"initializing the class."
+                            f"initializing the class.",
+                            stacklevel=2,
                         )
-        fhir_paths_with_name = [
+        compiled_paths = [
             (name, fhirpathpy.compile(path=path)) for name, path in fhir_paths_with_name
         ]
-        return partial(parse_fhir_path, compiled_fhir_paths=fhir_paths_with_name)
+        return partial(parse_fhir_path, compiled_fhir_paths=compiled_paths)
 
     def _bundles_to_dataframe(
         self,
-        bundles: Union[List[FHIRObj], Generator[FHIRObj, None, int]],
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
+        bundles: Iterable[FHIRObj],
+        process_function: ProcessFunc = flatten_data,
         build_df_after_query: bool = False,
         disable_multiprocessing: bool = False,
         always_return_dict: bool = False,
@@ -1357,19 +1381,15 @@ class Pirate:
             pool = multiprocessing.Pool(self.num_processes)
             if build_df_after_query or isinstance(bundles, List):
                 bundles = list(bundles)
-                processed_bundles = [
-                    bundle_output
-                    for bundle_output in tqdm(
+                processed_bundles = list(
+                    tqdm(
                         pool.imap(process_function, bundles),
                         total=len(bundles),
                         desc="Build DF",
                     )
-                ]
+                )
             else:
-                processed_bundles = [
-                    bundle_output
-                    for bundle_output in pool.imap(process_function, bundles)
-                ]
+                processed_bundles = list(pool.imap(process_function, bundles))
             pool.close()
             pool.join()
         results: Dict[str, List[Dict[str, Any]]] = {}
@@ -1388,14 +1408,14 @@ class Pirate:
         if always_return_dict:
             return dfs
         else:
-            return list(dfs.values())[0] if len(dfs) == 1 else dfs
+            return next(iter(dfs.values())) if len(dfs) == 1 else dfs
 
     def _query_to_dataframe(
         self,
-        bundles_function: Callable,
-    ) -> Callable:
+        bundles_function: Callable[..., Iterable[FHIRObj]],
+    ) -> Callable[..., Union[pd.DataFrame, Dict[str, pd.DataFrame]]]:
         """
-        Wrapper function that can be used to transform any function return Lists/Generators of
+        Transform any function return Lists/Generators of
         bundles into DataFrames.
 
         :param bundles_function: The function that returns a Generator/List of bundles and that
@@ -1404,8 +1424,8 @@ class Pirate:
         """
 
         def wrap(
-            process_function: Callable[[FHIRObj], Any] = flatten_data,
-            fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+            process_function: ProcessFunc = flatten_data,
+            fhir_paths: Optional[List[Union[str, Tuple[str, str]]]] = None,
             build_df_after_query: bool = False,
             disable_multiprocessing_build: bool = False,
             always_return_dict: bool = False,
@@ -1433,14 +1453,16 @@ class Pirate:
 
     def query_to_dataframe(
         self,
-        bundles_function: Callable,
-        process_function: Callable[[FHIRObj], Any] = flatten_data,
-        fhir_paths: List[Union[str, Tuple[str, str]]] = None,
+        bundles_function: Callable[
+            ..., Union[List[FHIRObj], Generator[FHIRObj, None, int]]
+        ],
+        process_function: ProcessFunc = flatten_data,
+        fhir_paths: Optional[List[Union[str, Tuple[str, str]]]] = None,
         build_df_after_query: bool = False,
         **kwargs: Any,
     ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         """
-        Wrapper function that given any of the functions that return bundles, builds the
+        Given any of the functions that return bundles, builds the
         DataFrame straight away.
         :param bundles_function: The function that should be used to get the bundles,
         e.g. self.sail_through_search_space, trade_rows_for_bundles

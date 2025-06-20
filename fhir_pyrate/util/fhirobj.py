@@ -17,10 +17,10 @@ class FHIRObj(SimpleNamespace):
     def __getattr__(self, item: str) -> None:
         return None
 
-    def __getstate__(self) -> Dict:
+    def __getstate__(self) -> Dict[str, Any]:
         return self.__dict__
 
-    def __setstate__(self, state: Dict) -> None:
+    def __setstate__(self, state: Dict[str, Any]) -> None:
         self.__dict__.update(state)
 
     def to_json(self) -> str:
