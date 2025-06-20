@@ -38,11 +38,12 @@ downloader = [ "SimpleITK", "pydicom", "dicomweb-client" ]
 miner = [ "spacy" ]
 all = [ "SimpleITK", "pydicom", "dicomweb-client", "spacy" ]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev-dependencies.dependencies]
 python-dotenv = "^1.1.0"
 pre-commit = "^4.2.0"
 beautifulsoup4 = "^4.11.1"
 jupyter = "^1.0.0"
+pytest = "^8.4.1"
 
 [tool.ruff]
 target-version = "py310"
