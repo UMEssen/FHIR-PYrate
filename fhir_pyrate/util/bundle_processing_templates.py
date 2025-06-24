@@ -7,7 +7,9 @@ from fhir_pyrate.util import FHIRObj
 logger = logging.getLogger(__name__)
 
 
-def flatten_data(bundle: FHIRObj, col_sep: str = "_") -> Dict[str, List[Dict]]:
+def flatten_data(
+    bundle: FHIRObj, col_sep: str = "_"
+) -> Dict[str, List[Dict[str, Any]]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes
@@ -68,8 +70,8 @@ def recurse_resource(
 
 
 def parse_fhir_path(
-    bundle: FHIRObj, compiled_fhir_paths: List[Tuple[str, Callable]]
-) -> Dict[str, List[Dict]]:
+    bundle: FHIRObj, compiled_fhir_paths: List[Tuple[str, Callable[..., Any]]]
+) -> Dict[str, List[Dict[str, Any]]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes, which have been specified using a list of compiled FHIRPath
@@ -93,7 +95,8 @@ def parse_fhir_path(
             if name in base_dict and base_dict[name] is not None and len(result) > 0:
                 warnings.warn(
                     f"The field {name} has already been filled with {base_dict[name]}, "
-                    f"so it will not be overwritten."
+                    f"so it will not be overwritten.",
+                    stacklevel=2,
                 )
             if name not in base_dict or base_dict[name] is None:
                 base_dict[name] = result

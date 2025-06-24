@@ -1,27 +1,38 @@
+# See https://gitlab.uk-essen.de/ship-ai/pre-commit-hooks for the newest version
+
 repos:
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.0.1
-  hooks:
-  - id: end-of-file-fixer
-  - id: trailing-whitespace
-- repo: https://github.com/psf/black
-  rev: 22.3.0
-  hooks:
-  - id: black
-- repo: https://github.com/pycqa/isort
-  rev: 5.12.0
-  hooks:
-  - id: isort
-    exclude: _external
-- repo: https://github.com/PyCQA/flake8
-  rev: 3.9.2
-  hooks:
-  - id: flake8
-    exclude: _external
-    additional_dependencies: ["flake8-bugbear==21.4.3"]
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v0.910
-  hooks:
-  - id: mypy
-    exclude: _external
-    args: ["--install-types", "--non-interactive"]
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.11.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+        exclude: examples
+      - id: ruff-format
+        exclude: examples
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        language_version: python3.10
+        additional_dependencies: [types-python-dateutil, types-requests]
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [html, css, json, javascript, xml, yaml]
+        exclude: node_modules
+
+  - repo: https://github.com/tox-dev/pyproject-fmt
+    rev: v2.5.1
+    hooks:
+      - id: pyproject-fmt
+        types: [toml]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files

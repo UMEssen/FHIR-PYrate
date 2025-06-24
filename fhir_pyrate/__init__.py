@@ -24,7 +24,7 @@ DicomDownloader, _ = fhir_pyrate.util.imports.optional_import(
 
 __all__ = [
     "Ahoy",
+    "DicomDownloader",
     "Miner",
     "Pirate",
-    "DicomDownloader",
 ]

@@ -29,9 +29,9 @@ class Miner:
     def __init__(
         self,
         target_regex: str,
-        negation_regex: str = None,
-        regex_flags: Union[int, re.RegexFlag] = None,
-        decode_text: Callable = None,
+        negation_regex: Optional[str] = None,
+        regex_flags: Optional[Union[int, re.RegexFlag]] = None,
+        decode_text: Optional[Callable[[str], str]] = None,
         nlp_lib: str = "de_core_news_sm",
         num_processes: int = 1,
     ) -> None:
@@ -49,6 +49,7 @@ class Miner:
                 "this will probably not work, because it needs access to your home "
                 "directory. Please run python -m spacy download {nlp_lib} in your "
                 "docker file.",
+                stacklevel=2,
             )
             subprocess.run(
                 f"python3 -m spacy download {nlp_lib}".split(" "),
@@ -66,7 +67,7 @@ class Miner:
     @staticmethod
     def _remove_header(sentences: List[Span], main_document_keyword: str) -> List[Span]:
         """
-        Removes all sentences that come before a sentence that contains the `main_document_keyword`.
+        Remove all sentences that come before a sentence that contains the `main_document_keyword`.
         This is useful when a document has a header, and we know what the first viable word of a
         document is, or we know that we are interested in some particular part of the
         document that comes after a certain keyword.
@@ -86,10 +87,10 @@ class Miner:
     def _check_diagnostic_report(
         self,
         report_text: str,
-        main_document_keyword: str = "",
+        main_document_keyword: Optional[str] = "",
     ) -> Optional[List[Span]]:
         """
-        Checks whether a report contains the relevant RegEx and does not contain the negation
+        Check whether a report contains the relevant RegEx and does not contain the negation
         RegEx (if specified).
 
         :param report_text: The text to be searched
@@ -103,7 +104,7 @@ class Miner:
         contains_target = re.search(self.target_regex, report_text, self.regex_flags)
         relevant_sentences = []
         if contains_target:
-            sentences = [i for i in self.nlp(report_text).sents]
+            sentences = list(self.nlp(report_text).sents)
             if main_document_keyword is not None:
                 sentences = self._remove_header(sentences, main_document_keyword)
 
@@ -129,10 +130,10 @@ class Miner:
         df: pd.DataFrame,
         text_column_name: str,
         new_column_name: str = "text_found",
-        main_document_keyword: str = None,
+        main_document_keyword: Optional[str] = None,
     ) -> pd.DataFrame:
         """
-        Searches the strings contained in `text_column_name` for the selected RegEx, and adds two
+        Search the strings contained in `text_column_name` for the selected RegEx, and adds two
         columns to the DataFrame with the output of the NLP search. The negation RegEx can be
         used to exclude sentences. Additionally, it is possible to define a `main_document_keyword`,
         which is a string that can be used to filter out the header of the document.
@@ -151,31 +152,29 @@ class Miner:
             self._check_diagnostic_report,
             main_document_keyword=main_document_keyword,
         )
-        texts = [row for row in df[text_column_name].values]
+        texts = list(df[text_column_name].values)
         tqdm_text = f"Searching for Sentences with {self.target_regex}"
         if self.negation_regex is not None:
             tqdm_text += f" and without {self.negation_regex}"
         if self.num_processes > 1:
             pool = multiprocessing.Pool(self.num_processes)
-            results = [
-                result
-                for result in tqdm(
+            results = list(
+                tqdm(
                     pool.imap(func, texts),
                     total=len(df),
                     desc=tqdm_text,
                 )
-            ]
+            )
             pool.close()
             pool.join()
         else:
-            results = [
-                result
-                for result in tqdm(
+            results = list(
+                tqdm(
                     [func(text) for text in texts],
                     total=len(df),
                     desc=tqdm_text,
                 )
-            ]
+            )
 
         df[new_column_name + "_sentences"] = results
         df[new_column_name] = ~df[new_column_name + "_sentences"].isna()

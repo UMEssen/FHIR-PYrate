@@ -1,56 +1,101 @@
+[build-system]
+build-backend = "poetry.core.masonry.api"
+
+requires = [ "poetry-core>=1" ]
+
 [tool.poetry]
 name = "fhir-pyrate"
 version = "0.2.1"
 description = "FHIR-PYrate is a package that provides a high-level API to query FHIR Servers for bundles of resources and return the structured information as pandas DataFrames. It can also be used to filter resources using RegEx and SpaCy and download DICOM studies and series."
 license = "MIT"
-authors = ["Rene Hosch <rene.hosch@uk-essen.de>", "Giulia Baldini <giulia.baldini@uk-essen.de>"]
+authors = [ "Rene Hosch <rene.hosch@uk-essen.de>", "Giulia Baldini <giulia.baldini@uk-essen.de>" ]
 readme = "README.md"
 repository = "https://github.com/UMEssen/FHIR-PYrate"
-keywords = ["python", "fhir", "data-science", "fhirpath", "healthcare"]
-include = ["LICENCE"]
+keywords = [ "python", "fhir", "data-science", "fhirpath", "healthcare" ]
+include = [ "LICENCE" ]
 packages = [
-    { include = "fhir_pyrate" },
+  { include = "fhir_pyrate" },
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 ###
 SimpleITK = { version = "^2.0.2", optional = true }
 pydicom = { version = "^2.1.2", optional = true }
 dicomweb-client = { version = "^0.52.0", optional = true }
 spacy = { version = "^3.0.6", optional = true }
 ###
-numpy = "^1.22"
-pandas = "^1.3.0"
+numpy = "^2.0.0"
+pandas = "^2.0.0"
 tqdm = "^4.56.0"
 requests = "^2.28.0"
 PyJWT = "^2.4.0"
 fhirpathpy = "^0.2.2"
 requests-cache = "^0.9.7"
 
-
 [tool.poetry.extras]
-downloader = ["SimpleITK", "pydicom", "dicomweb-client"]
-miner = ["spacy"]
-all = ["SimpleITK", "pydicom", "dicomweb-client", "spacy"]
+downloader = [ "SimpleITK", "pydicom", "dicomweb-client" ]
+miner = [ "spacy" ]
+all = [ "SimpleITK", "pydicom", "dicomweb-client", "spacy" ]
 
-[tool.poetry.dev-dependencies]
-python-dotenv = "^0.20.0"
-pre-commit = "^2.14.0"
-flake8 = "^3.9.2"
-mypy = "^0.910"
-black = "^22.3.0"
+[tool.poetry.group.dev-dependencies.dependencies]
+python-dotenv = "^1.1.0"
+pre-commit = "^4.2.0"
 beautifulsoup4 = "^4.11.1"
 jupyter = "^1.0.0"
+pytest = "^8.4.1"
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.ruff]
+target-version = "py310"
+
+# Same as Black
+line-length = 88
+lint.select = [
+  "B", # flake8-bugbear
+  "C", # flake8-comprehensions
+  # "D",  # pydocstyle
+  "D401", # First line of docstring should be in imperative mood
+  "E",    # pycodestyle errors
+  "EXE",  # flake8-executable
+  "F",    # pyflakes
+  "I",    # isort
+  # "PL",   # pylint
+  "RUF", # ruff
+  "W",   # pycodestyle warnings
+]
+lint.ignore = [
+  "C901",    # Too complex
+  "D100",    # Missing docstring in public module
+  "D101",    # Missing docstring in public class
+  "D104",    # Missing docstring in public package
+  "D105",    # Missing docstring in magic method
+  "E501",    # line too long, handled by black
+  "PLR2004", # Magic value used in comparison, consider replacing # with a constant variable
+]
+lint.unfixable = [
+  "F401", # Do not fix unused imports, it's annoying during development
+]
+lint.pydocstyle.convention = "google"
+
+[tool.mypy]
+# Ensure full coverage
+check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+
+# Restrict dynamic typing
+disallow_any_generics = true
+disallow_subclassing_any = true
+warn_return_any = true
+
+# Know exactly what you're doing
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+warn_unreachable = true
+show_error_codes = true
 
 [virtualenvs]
 create = true
 in-project = true
-
-[tool.isort]
-profile = "black"
-line_length = 88

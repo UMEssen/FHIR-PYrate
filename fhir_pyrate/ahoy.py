@@ -40,15 +40,15 @@ class Ahoy:
 
     def __init__(
         self,
-        auth_url: str = None,
+        auth_url: Optional[str] = None,
         auth_type: Optional[str] = "token",
-        refresh_url: str = None,
-        username: str = None,
+        refresh_url: Optional[str] = None,
+        username: Optional[str] = None,
         auth_method: Optional[str] = "password",
-        token: str = None,
+        token: Optional[str] = None,
         max_login_attempts: int = 5,
-        token_refresh_delta: Union[int, timedelta] = None,
-        session: requests.Session = None,
+        token_refresh_delta: Optional[Union[int, timedelta]] = None,
+        session: Optional[requests.Session] = None,
     ) -> None:
         self.auth_type = auth_type
         self.auth_method = auth_method
@@ -82,7 +82,7 @@ class Ahoy:
         self.close()
 
     def change_environment_variable_name(
-        self, user_env: str = None, pass_env: str = None
+        self, user_env: Optional[str] = None, pass_env: Optional[str] = None
     ) -> None:
         """
         Change the name of the variables used to retrieve username and password.

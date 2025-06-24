@@ -11,20 +11,19 @@ permissions:
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.8"
-    - name: Install poetry
-      run: |
-        curl -sSL https://install.python-poetry.org | python3 -
-        export PATH="/root/.local/bin:$PATH"
-        poetry run pip install -U pip
-        poetry install
-    - name: Publish package
-      run: poetry publish --build --username __token__ --password ${{ secrets.PYPI_TOKEN }}
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.8"
+      - name: Install poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          export PATH="/root/.local/bin:$PATH"
+          poetry run pip install -U pip
+          poetry install
+      - name: Publish package
+        run: poetry publish --build --username __token__ --password ${{ secrets.PYPI_TOKEN }}

@@ -16,7 +16,7 @@ def string_from_column(
     sort_reverse: bool = False,
 ) -> Any:
     """
-    Transforms the values contained in a pandas Series into a string of (if desired unique) values.
+    Transform the values contained in a pandas Series into a string of (if desired unique) values.
 
     :param col:
     :param separator: The separator for the values
@@ -25,7 +25,7 @@ def string_from_column(
     :param sort_reverse: Whether the values should sorted in reverse order
     :return: A string containing the values of the Series.
     """
-    existing_values = list()
+    existing_values = []
     for el in col.values:
         if not pd.isnull(el) and el != "":
             existing_values.append(el)
@@ -44,7 +44,7 @@ def string_from_column(
 
 def get_datetime(dt_format: str = "%Y-%m-%d %H:%M:%S") -> str:
     """
-    Creates a datetime string according to the given format
+    Create a datetime string according to the given format
 
     :param dt_format: The format to use for the printing
     :return: The formatted string
