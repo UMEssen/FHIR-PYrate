@@ -4,7 +4,8 @@ import re
 import tempfile
 import time
 import unittest
-from typing import Any, Dict, List
+from re import Match
+from typing import Any, Dict, List, cast
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -110,7 +111,8 @@ class GeneralTests(unittest.TestCase):
                 url_search = re.search(
                     pattern=r"(https?:\/\/([^\/]+))([\w\.\-~\/]*)", string=test_url
                 )
-                assert url_search is not None
+                self.assertIsNotNone(url_search)
+                url_search = cast(Match[str], url_search)
                 base_url = url_search.group(1)
                 domain = url_search.group(2)
                 fhir_app_location = (
@@ -118,16 +120,16 @@ class GeneralTests(unittest.TestCase):
                     if len(url_search.group(3)) > 0 and url_search.group(3)[-1] == "/"
                     else url_search.group(3) + "/"
                 )
-                assert domain in base_url
+                self.assertIn(domain, base_url)
                 build_link = f"{base_url}{fhir_app_location}DiagnosticReport"
-                assert "/DiagnosticReport" in build_link, build_link
-                assert build_link.count("http") == 1, build_link
+                self.assertIn("/DiagnosticReport", build_link)
+                self.assertEqual(build_link.count("http"), 1)
                 next_link = (
                     f"{base_url}{next_link_url}"
                     if domain not in next_link_url
                     else next_link_url
                 )
-                assert next_link.count("http") == 1, next_link
+                self.assertEqual(next_link.count("http"), 1, next_link)
 
     def testAuth(self) -> None:
         for server, type, method in AUTH_SERVERS:
@@ -154,9 +156,10 @@ class GeneralTests(unittest.TestCase):
                     value_df = search.steal_bundles_to_dataframe(
                         resource_type="ValueSet",
                         num_pages=1,
-                        request_params={"_sort": "_id"},
+                        request_params={"_sort": "_id", "_format": "json"},
                     )
                     self.assertGreater(len(value_df), 0)
+
 
 #     # Test each single function from Pirate
 #     def testServers(self) -> None:
