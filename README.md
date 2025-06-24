@@ -1,5 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Supported Python version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
+[![Supported Python version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-31011/)
 [![Stable Version](https://img.shields.io/pypi/v/fhir-pyrate?label=stable)](https://pypi.org/project/fhir-pyrate/)
 [![Pre-release Version](https://img.shields.io/github/v/release/UMEssen/fhir-pyrate?label=pre-release&include_prereleases&sort=semver)](https://pypi.org/project/fhir-pyrate/#history)
 [![DOI](https://zenodo.org/badge/456893108.svg)](https://zenodo.org/badge/latestdoi/456893108)
