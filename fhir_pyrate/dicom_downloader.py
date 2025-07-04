@@ -1,3 +1,4 @@
+import ctypes
 import hashlib
 import io
 import logging
@@ -12,6 +13,7 @@ import tempfile
 import traceback
 import warnings
 from contextlib import contextmanager
+from ctypes.util import find_library
 from functools import partial
 from types import TracebackType
 from typing import (
@@ -45,15 +47,12 @@ logger = logging.getLogger(__name__)
 # https://stackoverflow.com/questions/64674495/how-to-catch-simpleitk-warnings
 # https://github.com/hankcs/HanLP/blob/doc-zh/hanlp/utils/io_util.py
 try:
-    import ctypes
-    from ctypes.util import find_library
-except ImportError:
-    libc = None
-else:
-    try:
-        libc = ctypes.cdll.msvcrt  # Windows
-    except OSError:
-        libc = ctypes.cdll.LoadLibrary(find_library("c"))  # type: ignore
+    # Windows succeeds, POSIX raises
+    libc: Optional[ctypes.CDLL] = ctypes.cdll.msvcrt  # Windows
+except (OSError, AttributeError):
+    # POSIX fallback — "libc.so.*" on Linux, "libc.dylib" on macOS
+    c_name = find_library("c")
+    libc = ctypes.CDLL(c_name) if c_name else None
 
 
 def flush(stream: TextIO) -> None:
