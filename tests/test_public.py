@@ -1,17 +1,13 @@
 import logging
 import os
 import re
-import tempfile
-import time
 import unittest
 from re import Match
 from typing import Any, Dict, List, cast
 
-import pandas as pd
 from bs4 import BeautifulSoup
-from pandas.testing import assert_frame_equal
 
-from fhir_pyrate import Ahoy, Miner, Pirate
+from fhir_pyrate import Ahoy, Pirate
 from fhir_pyrate.util import FHIRObj
 
 logging.getLogger().setLevel(logging.INFO)
