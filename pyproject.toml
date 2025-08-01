@@ -32,6 +32,7 @@ requests = "^2.31.0"
 PyJWT = "^2.4.0"
 fhirpathpy = "^0.2.2"
 requests-cache = "^0.9.7"
+billiard = "^4.2.1"
 
 [tool.poetry.extras]
 downloader = [ "SimpleITK", "pydicom", "dicomweb-client" ]

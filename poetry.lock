@@ -220,6 +220,17 @@ html5lib = ["html5lib"]
 lxml = ["lxml"]
 
 [[package]]
+name = "billiard"
+version = "4.2.1"
+description = "Python multiprocessing fork with improvements and bugfixes"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "billiard-4.2.1-py3-none-any.whl", hash = "sha256:40b59a4ac8806ba2c2369ea98d876bc6108b051c227baffd928c644d15d8f3cb"},
+    {file = "billiard-4.2.1.tar.gz", hash = "sha256:12b641b0c539073fc8d3f5b8b7be998956665c4233c7c1fcd66a7e677c4fb36f"},
+]
+
+[[package]]
 name = "bleach"
 version = "6.2.0"
 description = "An easy safelist-based HTML-sanitizing tool."
@@ -3765,4 +3776,4 @@ miner = ["spacy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "5de8ae2937d65ad9a6fdb1859f0340f4f18dc41363bb740a6cf4c962b5b160b1"
+content-hash = "b56687f570fc89514dbd2be1ce82afd97820bf6dd5002516ccc9737fcce2188f"

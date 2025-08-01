@@ -2,7 +2,7 @@ import ctypes
 import hashlib
 import io
 import logging
-import multiprocessing
+from billiard.pool import Pool
 import os
 import pathlib
 import platform
@@ -632,7 +632,7 @@ class DicomDownloader:
             for row in df.itertuples(index=False)
         ]
         if self.num_processes > 1:
-            with multiprocessing.Pool(
+            with Pool(
                 self.num_processes,
                 initializer=signal.signal,
                 initargs=(signal.SIGINT, signal.SIG_IGN),
