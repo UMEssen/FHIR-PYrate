@@ -2,7 +2,6 @@ import ctypes
 import hashlib
 import io
 import logging
-from billiard.pool import Pool
 import os
 import pathlib
 import platform
@@ -33,6 +32,7 @@ import pandas as pd
 import pydicom
 import requests
 import SimpleITK as sitk
+from billiard.pool import Pool
 from dicomweb_client.api import DICOMwebClient
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
