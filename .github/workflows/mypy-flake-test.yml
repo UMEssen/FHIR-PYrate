@@ -1,8 +1,5 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI Tests
 
-# Controls when the workflow will run
 on:
   push:
     branches:
@@ -10,48 +7,44 @@ on:
     paths:
       - "fhir_pyrate/**"
       - "tests/**"
+      - ".pre-commit-config.yaml"
+      - "pyproject.toml"
+      - "uv.lock"
   pull_request:
     paths:
       - "fhir_pyrate/**"
       - "tests/**"
-  # Allows you to run this workflow manually from the Actions tab
+      - ".pre-commit-config.yaml"
+      - "pyproject.toml"
+      - "uv.lock"
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      # Set up python
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Install poetry
-      - name: Install poetry
+      - name: Install uv
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          poetry run pip install -U pip
-          poetry install -E all
-      - name: Run MyPy
+          python -m pip install -U pip
+          pip install uv
+          uv sync --group dev --extra all
+
+      - name: Run pre-commit
         run: |
-          poetry run mypy --install-types --non-interactive fhir_pyrate
-          poetry run mypy --install-types --non-interactive tests
-      - name: Run Flake8
+          uv run pre-commit run -a
+
+      - name: Run pytest
         run: |
-          poetry run flake8 fhir_pyrate/
-          poetry run flake8 tests/
-      - name: Run Tests
-        run: |
-          poetry run python -m unittest discover tests
+          uv run pytest -q
