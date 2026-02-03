@@ -1,49 +1,65 @@
 [build-system]
-build-backend = "poetry.core.masonry.api"
+build-backend = "setuptools.build_meta"
 
-requires = [ "poetry-core>=1" ]
+requires = [ "setuptools>=80", "wheel" ]
 
-[tool.poetry]
+[project]
 name = "fhir-pyrate"
-version = "0.2.3"
+version = "0.2.4"
 description = "FHIR-PYrate is a package that provides a high-level API to query FHIR Servers for bundles of resources and return the structured information as pandas DataFrames. It can also be used to filter resources using RegEx and SpaCy and download DICOM studies and series."
-license = "MIT"
-authors = [ "Rene Hosch <rene.hosch@uk-essen.de>", "Giulia Baldini <giulia.baldini@uk-essen.de>" ]
 readme = "README.md"
-repository = "https://github.com/UMEssen/FHIR-PYrate"
-keywords = [ "python", "fhir", "data-science", "fhirpath", "healthcare" ]
-include = [ "LICENCE" ]
-packages = [
-  { include = "fhir_pyrate" },
+keywords = [ "data-science", "fhir", "fhirpath", "healthcare", "python" ]
+license-files = [ "LICENSE" ]
+authors = [
+  { name = "Rene Hosch", email = "rene.hosch@uk-essen.de" },
+  { name = "Giulia Baldini", email = "giulia.baldini@uk-essen.de" },
+]
+requires-python = ">=3.10"
+
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+  "fhirpathpy>=0.2.2",
+  "numpy>=2",
+  "pandas>=2",
+  "pyjwt>=2.4",
+  "requests>=2.31",
+  "requests-cache>=0.9.7",
+  "tqdm>=4.56",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-###
-SimpleITK = { version = "^2.0.2", optional = true }
-pydicom = { version = "^2.1.2", optional = true }
-dicomweb-client = { version = "^0.52.0", optional = true }
-spacy = { version = "^3.0.6", optional = true }
-###
-numpy = "^2.0.0"
-pandas = "^2.0.0"
-tqdm = "^4.56.0"
-requests = "^2.31.0"
-PyJWT = "^2.4.0"
-fhirpathpy = "^0.2.2"
-requests-cache = "^0.9.7"
+optional-dependencies.all = [
+  "dicomweb-client>=0.52",
+  "pydicom>=2.1.2",
+  "simpleitk>=2.0.2",
+  "spacy>=3.0.6",
+]
+optional-dependencies.downloader = [
+  "dicomweb-client>=0.52",
+  "pydicom>=2.1.2",
+  "simpleitk>=2.0.2",
+]
+optional-dependencies.miner = [
+  "spacy>=3.0.6",
+]
+urls = { Repository = "https://github.com/UMEssen/FHIR-PYrate" }
 
-[tool.poetry.extras]
-downloader = [ "SimpleITK", "pydicom", "dicomweb-client" ]
-miner = [ "spacy" ]
-all = [ "SimpleITK", "pydicom", "dicomweb-client", "spacy" ]
+[dependency-groups]
+dev = [
+  "beautifulsoup4>=4.11.1,<5",
+  "jupyter>=1,<2",
+  "pre-commit>=4.5.1",
+  "pytest>=9.0.2",
+  "python-dotenv>=1.2.1",
+]
 
-[tool.poetry.group.dev-dependencies.dependencies]
-python-dotenv = "^1.1.0"
-pre-commit = "^4.2.0"
-beautifulsoup4 = "^4.11.1"
-jupyter = "^1.0.0"
-pytest = "^8.4.1"
+[tool.setuptools]
+packages = [ "fhir_pyrate" ]
 
 [tool.ruff]
 target-version = "py310"
