@@ -116,9 +116,3 @@ show_error_codes = true
 [virtualenvs]
 create = true
 in-project = true
-
-[tool.markdownlint]
-# Disable rules globally
-disable = [
-  "MD013", # line-length
-]
