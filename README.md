@@ -1,5 +1,3 @@
-# FHIR-PYrate
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Supported Python version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-31011/)
 [![Stable Version](https://img.shields.io/pypi/v/fhir-pyrate?label=stable)](https://pypi.org/project/fhir-pyrate/)
@@ -15,10 +13,9 @@ pandas DataFrames. Want to use R instead? Try out [fhircrackr](https://github.co
 
 **If you use this package, please cite:**
 
-Hosch, R., Baldini, G., Parmar, V. et al. FHIR-PYrate: a data science friendly Python package to query FHIR servers. BMC Health Serv Res 23, 734 (2023). <https://doi.org/10.1186/s12913-023-09498-1>
+Hosch, R., Baldini, G., Parmar, V. et al. FHIR-PYrate: a data science friendly Python package to query FHIR servers. BMC Health Serv Res 23, 734 (2023). https://doi.org/10.1186/s12913-023-09498-1
 
 There are four main classes:
-
 * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/ahoy.py): Authenticate on the FHIR API
 ([Example 1](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/1-simple-json-to-df.ipynb),
 [2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-condition-to-imaging-study.ipynb)),
@@ -45,41 +42,37 @@ problems with the authentication (or anything else really), please just create a
 Table of Contents:
 
 * [Install](https://github.com/UMEssen/FHIR-PYrate/#install)
-  * [Either Pip](https://github.com/UMEssen/FHIR-PYrate/#either-pip)
-  * [Or Within Poetry](https://github.com/UMEssen/FHIR-PYrate/#or-within-poetry)
+   * [Either Pip](https://github.com/UMEssen/FHIR-PYrate/#either-pip)
+   * [Or Within Poetry](https://github.com/UMEssen/FHIR-PYrate/#or-within-poetry)
 * [Run Tests](https://github.com/UMEssen/FHIR-PYrate/#run-tests)
 * [Explanations &amp; Examples](https://github.com/UMEssen/FHIR-PYrate/#explanations--examples)
-  * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/#ahoy)
-  * [Pirate](https://github.com/UMEssen/FHIR-PYrate/#pirate)
-    * [sail_through_search_space](https://github.com/UMEssen/FHIR-PYrate/#sail_through_search_space)
-    * [trade_rows_for_bundles](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_bundles)
-    * [bundles_to_dataframe](https://github.com/UMEssen/FHIR-PYrate/#bundles_to_dataframe)
-    * [***_dataframe](https://github.com/UMEssen/FHIR-PYrate/#_dataframe)
-  * [Miner](https://github.com/UMEssen/FHIR-PYrate/#miner)
-  * [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/#dicomdownloader)
+   * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/#ahoy)
+   * [Pirate](https://github.com/UMEssen/FHIR-PYrate/#pirate)
+      * [sail_through_search_space](https://github.com/UMEssen/FHIR-PYrate/#sail_through_search_space)
+      * [trade_rows_for_bundles](https://github.com/UMEssen/FHIR-PYrate/#trade_rows_for_bundles)
+      * [bundles_to_dataframe](https://github.com/UMEssen/FHIR-PYrate/#bundles_to_dataframe)
+      * [***_dataframe](https://github.com/UMEssen/FHIR-PYrate/#_dataframe)
+   * [Miner](https://github.com/UMEssen/FHIR-PYrate/#miner)
+   * [DicomDownloader](https://github.com/UMEssen/FHIR-PYrate/#dicomdownloader)
 * [Contributing](https://github.com/UMEssen/FHIR-PYrate/#contributing)
 * [Authors and acknowledgment](https://github.com/UMEssen/FHIR-PYrate/#authors-and-acknowledgment)
 * [License](https://github.com/UMEssen/FHIR-PYrate/#license)
 * [Project status](https://github.com/UMEssen/FHIR-PYrate/#project-status)
 
+
 ## Install
 
 ### Either Pip
-
 The package can be installed using PyPi
-
 ```bash
 pip install fhir-pyrate
 ```
-
 or using GitHub (always the newest version).
-
 ```bash
 pip install git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
 
 These two commands only install the packages needed for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
-
 ```bash
 pip install "fhir-pyrate[miner]" # only for miner
 pip install "fhir-pyrate[downloader]" # only for downloader
@@ -87,46 +80,35 @@ pip install "fhir-pyrate[all]" # for both
 ```
 
 ### Or Within Poetry
-
 We can also use poetry for this same purpose. Using PyPi we need to run the following commands.
-
 ```bash
 poetry add fhir-pyrate
 poetry install
 ```
-
 Whereas to add it from GitHub, we have different options, because until recently
 [poetry used to exclusively install from the master branch](https://github.com/python-poetry/poetry/issues/3366).
 
 Poetry 1.2.0a2+:
-
 ```bash
 poetry add git+https://github.com/UMEssen/FHIR-PYrate.git
 poetry install
 ```
-
 For the previous versions you need to add the following line to your `pyproject.toml` file:
-
 ```bash
 fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "main"}
 ```
-
 and then run
-
 ```bash
 poetry lock
 ```
 
 Also in poetry, the above only installs the packages for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
-
 ```bash
 poetry add "fhir-pyrate[miner]" # only for miner
 poetry add "fhir-pyrate[downloader]" # only for downloader
 poetry add "fhir-pyrate[all]" # for both
 ```
-
 or by adding the following to your `pyproject.toml` file:
-
 ```bash
 fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "main", extras = ["all"]}
 ```
@@ -194,7 +176,6 @@ search = Pirate(
 ```
 
 The Pirate functions do one of three things:
-
 1. They run the query and collect the resources and store them in a generator of bundles.
    * `steal_bundles`: single process, no timespan to specify
    * `sail_through_search_space`: multiprocess, divide&conquer with many smaller timespans
@@ -215,6 +196,7 @@ The Pirate functions do one of three things:
 | steal_bundles_to_dataframe              |  3   |       No        |    No     |      DataFrame       |
 | sail_through_search_space_to_dataframe  |  3   |       Yes       |    No     |      DataFrame       |
 | trade_rows_for_dataframe                |  3   |       Yes       |    Yes    |      DataFrame       |
+
 
 **CACHING**: It is also possible to cache the bundles using the `cache_folder` parameter.
 This unfortunately does not currently work with multiprocessing, but saves a lot of time if you
@@ -294,8 +276,7 @@ is the column where the values that we want to search for are stored.
 Additionally, a system can be used to better identify the constraints of the DataFrame.
 For example, let us assume that we have a column of the DataFrame (called `loinc_code` that
 contains a bunch of different LOINC codes. Our `df_constraints` could look as follows:
-
-```python
+```
 df_constraints={"code": ("http://loinc.org", "loinc_code")}
 ```
 
@@ -309,12 +290,10 @@ converted to a `DataFrame` using this function.
 
 The `bundles_to_dataframe` has three options on how to handle and extract the relevant information
 from the bundles:
-
 1. Extract everything, in this case you can use the
 [`flatten_data`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/util/bundle_processing_templates.py)
 function, which is already the default for `process_function`, so you do not actually need to
 specify anything.
-
 ```python
 # Create bundles with Pirate
 search = ...
@@ -324,12 +303,10 @@ df = search.bundles_to_dataframe(
     bundles=bundles,
 )
 ```
-
-1. Use a processing function where you define exactly which attributes are needed by iterating
+2. Use a processing function where you define exactly which attributes are needed by iterating
    through the entries and selecting the elements. The values that will be added to the
    dictionary represent the columns of the DataFrame. For an example of when it might make sense
    to do this, check [Example 3](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/3-patients-for-condition.ipynb).
-
 ```python
 from typing import List, Dict
 from fhir_pyrate.util.fhirobj import FHIRObj
@@ -354,14 +331,12 @@ df = search.bundles_to_dataframe(
     process_function=get_diagnostic_text,
 )
 ```
-
-1. Extract only part of the information using the `fhir_paths` argument. Here you can put a list
+3. Extract only part of the information using the `fhir_paths` argument. Here you can put a list
    of string that follow the [FHIRPath](https://hl7.org/fhirpath/) standard. For this purpose, we
    use the [fhirpath-py](https://github.com/beda-software/fhirpath-py) package, which uses the
    [antr4](https://github.com/antlr/antlr4) parser. Additionally, you can use tuples like `(key,
    fhir_path)`, where `key` will be the name of the column the information derived from that
    FHIRPath will be stored.
-
 ```python
 # Create bundles with Pirate
 search = ...
@@ -372,7 +347,6 @@ df = search.bundles_to_dataframe(
     fhir_paths=["id", ("code", "code.coding"), ("identifier", "identifier[0].code")],
 )
 ```
-
 **NOTE 1 on FHIR paths**: The standard also allows some primitive math operations such as modulus
 (`mod`) or integer division (`div`), and this may be problematic if there are fields of the
 resource that use these terms as attributes.
@@ -383,8 +357,7 @@ instead (as in 2.).
 **NOTE 2 on FHIR paths**: Since it is possible to specify the column name with a tuple
 `(key, fhir_path)`, it is important to know that if a key is used multiple times for different
 pieces of information but for the same resource, the field will be only filled with the first
-occurrence that is not None.
-
+occurence that is not None.
 ```python
 df = search.steal_bundles_to_dataframe(
     resource_type="DiagnosticReport",
@@ -412,7 +385,6 @@ df = search.steal_bundles_to_dataframe(
 ```
 
 #### [`***_dataframe`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
-
 The `steal_bundles_to_dataframe`, `sail_through_search_space_to_dataframe` and `trade_rows_for_dataframe`
 are facade functions which retrieve the bundles and then run `bundles_to_dataframe`.
 
@@ -432,7 +404,6 @@ More on that in the following section.
 
 Not all FHIR servers allow this (at least not the public ones that we have tried),
 but it is also possible to obtain multiple resources with just one query:
-
 ```python
 search = ...
 result_dfs = search.steal_bundles_to_dataframe(
@@ -460,7 +431,6 @@ result_dfs = search.steal_bundles_to_dataframe(
     num_pages=1,
 )
 ```
-
 In this case, a dictionary of DataFrames is returned, where the keys are the resource types.
 You can then select the single dictionary by doing `result_dfs["ImagingStudy"]`
 or `result_dfs["Patient"]`.
@@ -482,9 +452,14 @@ such that only the ones containing
 the actual resource name are kept if the resource name is specified in the path,
 and that a column full of `None`s is obtained in case no resource type is specified.
 
+
 ### [Miner](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/miner.py)
 
-![FHIR-PYrate Logo](https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/miner.svg)
+<br />
+<div align="center">
+  <img src="https://raw.githubusercontent.com/UMEssen/FHIR-PYrate/main/images/miner.svg" alt="Logo" width="718" height="230">
+</div>
+<br />
 
 The **Miner** takes a DataFrame and searches it for a particular regular expression
 with the help of [SpaCy](https://spacy.io/).
@@ -596,15 +571,13 @@ request. You can also simply open an issue with the tag "enhancement".
 
 This package was developed by the [SHIP-AI group at the Institute for Artificial Intelligence in Medicine](https://ship-ai.ikim.nrw/).
 
-* [goku1110](https://github.com/goku1110): initial idea, development, logo & figures
-* [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
+- [goku1110](https://github.com/goku1110): initial idea, development, logo & figures
+- [giuliabaldini](https://github.com/giuliabaldini): development, tests, new features
 
 We would like to thank [razorx89](https://github.com/razorx89), [butterpear](https://github.com/butterpear), [vkyprmr](https://github.com/vkyprmr), [Wizzzard93](https://github.com/Wizzzard93), [karzideh](https://github.com/karzideh) and [luckfamousa](https://github.com/luckfamousa) for their input, time and effort.
 
 ## License
-
 This project is licenced under the [MIT Licence](LICENSE).
 
 ## Project status
-
 The project is in active development.

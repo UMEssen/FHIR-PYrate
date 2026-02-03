@@ -1,8 +1,8 @@
-# See https://gitlab.uk-essen.de/ship-ai/templates/pre-commit-hooks
+# See https://gitlab.uk-essen.de/ship-ai/pre-commit-hooks for the newest version
 
 repos:
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.14.14
+    rev: v0.11.6
     hooks:
       - id: ruff
         args: [--fix]
@@ -11,7 +11,7 @@ repos:
         exclude: examples
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+    rev: v1.15.0
     hooks:
       - id: mypy
         language_version: python3.10
@@ -25,35 +25,13 @@ repos:
         exclude: node_modules
 
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: v2.12.0
+    rev: v2.5.1
     hooks:
       - id: pyproject-fmt
         types: [toml]
 
-  - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.20.0
-    hooks:
-      - id: markdownlint-cli2
-        args: [--fix]
-
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
-    hooks:
-      - id: codespell
-        types: [markdown]
-
-  - repo: local
-    hooks:
-      - id: export-requirements
-        name: Export requirements from uv
-        entry: uv pip compile
-        args: ["pyproject.toml", "--output-file", "requirements.txt"]
-        language: system
-        pass_filenames: false
-        always_run: true
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: v5.0.0
     hooks:
       - id: end-of-file-fixer
       - id: check-merge-conflict
