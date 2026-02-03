@@ -1,4 +1,4 @@
-name: Upload to PyPi
+name: Upload to PyPI
 
 on:
   release:
@@ -12,11 +12,10 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -25,10 +24,10 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install uv
-          uv sync --no-dev
+          rm -rf dist
           uv build
 
-      - name: Publish package
+      - name: Publish
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: uv publish
