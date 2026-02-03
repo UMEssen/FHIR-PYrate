@@ -24,7 +24,6 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install uv
-          rm -rf dist
           uv build
 
       - name: Publish
