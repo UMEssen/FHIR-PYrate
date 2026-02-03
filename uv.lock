@@ -706,23 +706,23 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dicomweb-client", marker = "extra == 'all'", specifier = ">=0.52.0" },
-    { name = "dicomweb-client", marker = "extra == 'downloader'", specifier = ">=0.52.0" },
+    { name = "dicomweb-client", marker = "extra == 'all'", specifier = ">=0.52" },
+    { name = "dicomweb-client", marker = "extra == 'downloader'", specifier = ">=0.52" },
     { name = "fhirpathpy", specifier = ">=0.2.2" },
-    { name = "numpy", specifier = ">=2.0.0" },
-    { name = "pandas", specifier = ">=2.0.0" },
-    { name = "pydicom", marker = "extra == 'all'", specifier = ">=2.1.2" },
+    { name = "numpy", specifier = ">=2" },
+    { name = "pandas", specifier = ">=2" },
+    { name = "pydicom", marker = "extra == 'all'", specifier = ">=3.0.1" },
     { name = "pydicom", marker = "extra == 'downloader'", specifier = ">=2.1.2" },
-    { name = "pyjwt", specifier = ">=2.4.0" },
-    { name = "requests", specifier = ">=2.31.0" },
+    { name = "pyjwt", specifier = ">=2.4" },
+    { name = "requests", specifier = ">=2.31" },
     { name = "requests-cache", specifier = ">=0.9.7" },
     { name = "simpleitk", marker = "extra == 'all'", specifier = ">=2.0.2" },
     { name = "simpleitk", marker = "extra == 'downloader'", specifier = ">=2.0.2" },
     { name = "spacy", marker = "extra == 'all'", specifier = ">=3.0.6" },
     { name = "spacy", marker = "extra == 'miner'", specifier = ">=3.0.6" },
-    { name = "tqdm", specifier = ">=4.56.0" },
+    { name = "tqdm", specifier = ">=4.56" },
 ]
-provides-extras = ["downloader", "miner", "all"]
+provides-extras = ["all", "downloader", "miner"]
 
 [package.metadata.requires-dev]
 dev = [
