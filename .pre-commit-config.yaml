@@ -42,27 +42,6 @@ repos:
       - id: codespell
         types: [markdown]
 
-  - repo: local
-    hooks:
-      - id: export-requirements
-        name: Export requirements
-        entry: uv
-        args:
-          [
-            export,
-            --format,
-            requirements.txt,
-            --locked,
-            --no-dev,
-            --no-emit-local,
-            --no-hashes,
-            --output-file,
-            requirements.txt,
-          ]
-        language: system
-        pass_filenames: false
-        always_run: true
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
