@@ -30,17 +30,21 @@ class TokenAuth(requests.auth.AuthBase):
     :param token_refresh_delta: Either a timedelta object that tells us how often the token
     should be refreshed, or a number of minutes; this does not need to be specified for JWT tokens
     that contain the expiry date
+    :param token: A pre-existing token that should be used for authentication. If this is given,
+    no login is performed against the auth_url; the token is used as-is. An auth_url and/or
+    refresh_url are then only needed if the token should be refreshed once it expires.
     """
 
     def __init__(
         self,
-        username: str,
-        password: str,
-        auth_url: str,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        auth_url: Optional[str] = None,
         refresh_url: Optional[str] = None,
         session: Optional[requests.Session] = None,
         max_login_attempts: int = 5,
         token_refresh_delta: Optional[Union[int, timedelta]] = None,
+        token: Optional[str] = None,
     ) -> None:
         self._username = username
         self._password = password
@@ -63,18 +67,37 @@ class TokenAuth(requests.auth.AuthBase):
             if token_refresh_delta is not None
             else None
         )
-        self.token: Optional[str] = None
-        self._authenticate()
+        self.token: Optional[str] = token
+        # Only perform a login if no token was provided directly. If a token is given, it is
+        # used as-is and we only fall back to the auth_url/refresh_url when it needs refreshing.
+        if self.token is None:
+            if self.auth_url is None:
+                raise ValueError(
+                    "TokenAuth requires either a pre-existing token or an "
+                    "auth_url to fetch one."
+                )
+            self._authenticate()
         self.auth_time = now_utc()
 
     def _authenticate(self) -> None:
         """
         Authenticate the user using the authentication URL and sets the token.
         """
-        # Authentication to get the token
-        response = self._token_session.get(
-            f"{self.auth_url}", auth=(self._username, self._password)
+        if self.auth_url is None:
+            raise ValueError(
+                "Cannot authenticate without an auth_url. This TokenAuth was "
+                "initialised with a pre-existing token and no auth_url, so the "
+                "token cannot be (re-)fetched once it expires."
+            )
+        # Only send BasicAuth credentials if we actually have them; a token-only
+        # setup may reach this point with no username/password.
+        credentials = (
+            (self._username, self._password)
+            if self._username is not None and self._password is not None
+            else None
         )
+        # Authentication to get the token
+        response = self._token_session.get(f"{self.auth_url}", auth=credentials)
         response.raise_for_status()
         self.token = response.text
 

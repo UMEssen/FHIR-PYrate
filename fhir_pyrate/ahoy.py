@@ -27,8 +27,10 @@ class Ahoy:
     password will use the given username as username and ask to input a password;
     env will use the environment variables FHIR_USER and FHIR_PASSWORD;
     keyring will use a keyring [NOT IMPLEMENTED YET]
-    :param token: The token that can be used for authentication, if this variable is used then
-    the other variables do not need to be specified
+    :param token: A pre-existing token to use for authentication. If this is given, no login is
+    performed and the token is used as-is, so the username/password/auth_method variables do not
+    need to be specified. An auth_url and/or refresh_url are then only needed if the token should
+    be refreshed once it expires.
     :param max_login_attempts: The maximum number of logins that can be performed
     :param token_refresh_delta: Either a timedelta object that tells us how often the token
     should be refreshed, or a number of minutes; this does not need to be specified for JWT tokens
@@ -64,7 +66,9 @@ class Ahoy:
             self.session = session
         self.max_login_attempts = max_login_attempts
         self.token_refresh_delta = token_refresh_delta
-        if self.auth_type is not None and self.auth_method is not None:
+        if self.token is not None or (
+            self.auth_type is not None and self.auth_method is not None
+        ):
             self._authenticate()
 
     def __enter__(self) -> "Ahoy":
@@ -100,6 +104,22 @@ class Ahoy:
         """
         Authenticate the user in the current session with a token or with BasicAuth.
         """
+        assert self.auth_type is not None
+        if self.token is not None:
+            if self.auth_type.lower() != "token":
+                raise ValueError(
+                    "A pre-existing token can only be used with the 'token' "
+                    f"authentication type, but {self.auth_type} was given."
+                )
+            self.session.auth = TokenAuth(
+                auth_url=self.auth_url,
+                refresh_url=self.refresh_url,
+                session=self.session,
+                max_login_attempts=self.max_login_attempts,
+                token_refresh_delta=self.token_refresh_delta,
+                token=self.token,
+            )
+            return
         assert self.auth_method is not None
         if self.auth_method.lower() == "password":
             assert self.username is not None, (
@@ -121,7 +141,6 @@ class Ahoy:
             raise ValueError(
                 f"Used authentication method {self.auth_method} is not defined."
             )
-        assert self.auth_type is not None
         if self.auth_type.lower() == "token":
             assert self.auth_url is not None, (
                 "The token authentication method cannot be used "

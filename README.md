@@ -1,10 +1,10 @@
 # FHIR-PYrate
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Supported Python version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-31011/)
+[![Supported Python version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org)
 [![Stable Version](https://img.shields.io/pypi/v/fhir-pyrate?label=stable)](https://pypi.org/project/fhir-pyrate/)
 [![Pre-release Version](https://img.shields.io/github/v/release/UMEssen/fhir-pyrate?label=pre-release&include_prereleases&sort=semver)](https://pypi.org/project/fhir-pyrate/#history)
-[![DOI](https://zenodo.org/badge/456893108.svg)](https://zenodo.org/badge/latestdoi/456893108)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7025226.svg)](https://doi.org/10.5281/zenodo.7025226)
 [![Affiliated with RTG WisPerMed](https://img.shields.io/badge/Affiliated-RTG%202535%20WisPerMed-blue)](https://wispermed.org/)
 
 <!-- PROJECT LOGO -->
@@ -46,7 +46,7 @@ Table of Contents:
 
 * [Install](https://github.com/UMEssen/FHIR-PYrate/#install)
   * [Either Pip](https://github.com/UMEssen/FHIR-PYrate/#either-pip)
-  * [Or Within Poetry](https://github.com/UMEssen/FHIR-PYrate/#or-within-poetry)
+  * [Or Within uv](https://github.com/UMEssen/FHIR-PYrate/#or-within-uv)
 * [Run Tests](https://github.com/UMEssen/FHIR-PYrate/#run-tests)
 * [Explanations &amp; Examples](https://github.com/UMEssen/FHIR-PYrate/#explanations--examples)
   * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/#ahoy)
@@ -86,49 +86,32 @@ pip install "fhir-pyrate[downloader]" # only for downloader
 pip install "fhir-pyrate[all]" # for both
 ```
 
-### Or Within Poetry
+### Or Within uv
 
-We can also use poetry for this same purpose. Using PyPi we need to run the following commands.
+We can also use [uv](https://docs.astral.sh/uv/) for this same purpose. To add it from PyPi run:
 
 ```bash
-poetry add fhir-pyrate
-poetry install
+uv add fhir-pyrate
 ```
 
-Whereas to add it from GitHub, we have different options, because until recently
-[poetry used to exclusively install from the master branch](https://github.com/python-poetry/poetry/issues/3366).
-
-Poetry 1.2.0a2+:
+Whereas to add it from GitHub (always the newest version):
 
 ```bash
-poetry add git+https://github.com/UMEssen/FHIR-PYrate.git
-poetry install
+uv add git+https://github.com/UMEssen/FHIR-PYrate.git
 ```
 
-For the previous versions you need to add the following line to your `pyproject.toml` file:
+Also in uv, the above only installs the packages for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
 
 ```bash
-fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "main"}
+uv add "fhir-pyrate[miner]" # only for miner
+uv add "fhir-pyrate[downloader]" # only for downloader
+uv add "fhir-pyrate[all]" # for both
 ```
 
-and then run
+The extras can be combined with the GitHub source as well:
 
 ```bash
-poetry lock
-```
-
-Also in poetry, the above only installs the packages for **Pirate**. If you also want to use the **Miner** or the **DicomDownloader**, then you need to install them as extra dependencies with
-
-```bash
-poetry add "fhir-pyrate[miner]" # only for miner
-poetry add "fhir-pyrate[downloader]" # only for downloader
-poetry add "fhir-pyrate[all]" # for both
-```
-
-or by adding the following to your `pyproject.toml` file:
-
-```bash
-fhir-pyrate = {git = "https://github.com/UMEssen/FHIR-PYrate.git", branch = "main", extras = ["all"]}
+uv add "fhir-pyrate[all] @ git+https://github.com/UMEssen/FHIR-PYrate.git"
 ```
 
 ## Run Tests
@@ -138,7 +121,7 @@ unit tests. First set the `FHIR_USER` and `FHIR_PASSWORD` environment variables 
 username and password for the FHIR server and then run the tests.
 
 ```bash
-poetry run python -m unittest discover tests
+uv run pytest
 ```
 
 If you implement a new feature, please add a small test for it in
@@ -269,7 +252,7 @@ generated. You can drop the ID duplicates once you have built a DataFrame with y
 
 #### [`trade_rows_for_bundles`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
-In case we already have an Excel sheet or CSV file with `fhir_patient_id`s or any other
+In case we already have an Excel sheet or CSV file with `fhir_patient_id`s (or any other
 identifier), and we want to request resources based on those
 identifiers we can use the function `trade_rows_for_bundles`:
 
@@ -292,7 +275,7 @@ DataFrame in `df_constraints`. This dictionary should contain pairs of (`fhir_id
 `identifier_column`) where `fhir_identifier` is the API search parameter and `identifier_column`
 is the column where the values that we want to search for are stored.
 Additionally, a system can be used to better identify the constraints of the DataFrame.
-For example, let us assume that we have a column of the DataFrame (called `loinc_code` that
+For example, let us assume that we have a column of the DataFrame called `loinc_code` that
 contains a bunch of different LOINC codes. Our `df_constraints` could look as follows:
 
 ```python
@@ -522,8 +505,8 @@ your institute, please do not hesitate and contact us, or write a pull request!
 The **DicomDownloader** downloads a complete Study (StudyInstanceUID) or a specific series (
 StudyInstanceUID + SeriesInstanceUID).
 
-The relevant data can be downloaded either es DICOM (`.dcm`) or NIfTI (`.nii.gz`).
-In the NIfTI case there will be an  additional `.dcm` file to store some metadata.
+The relevant data can be downloaded either as DICOM (`.dcm`) or NIfTI (`.nii.gz`).
+In the NIfTI case there will be an additional `.dcm` file to store some metadata.
 
 Using the function `download_data_from_dataframe` it is possible to download studies and series
 directly from the data of a given dataframe. The column that contain the study/series
