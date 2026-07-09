@@ -41,7 +41,8 @@ jobs:
           pip install uv
           uv sync --group dev --extra all
 
-      - name: Run pre-commit
+      - if: matrix.python-version == '3.10'
+        name: Run pre-commit
         run: |
           uv run pre-commit run -a
 
