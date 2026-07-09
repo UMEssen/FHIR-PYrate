@@ -1,6 +1,6 @@
 import logging
 from datetime import timedelta
-from typing import Any, Optional, Union
+from typing import Any
 
 import jwt
 import requests
@@ -37,14 +37,14 @@ class TokenAuth(requests.auth.AuthBase):
 
     def __init__(
         self,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        auth_url: Optional[str] = None,
-        refresh_url: Optional[str] = None,
-        session: Optional[requests.Session] = None,
+        username: str | None = None,
+        password: str | None = None,
+        auth_url: str | None = None,
+        refresh_url: str | None = None,
+        session: requests.Session | None = None,
         max_login_attempts: int = 5,
-        token_refresh_delta: Optional[Union[int, timedelta]] = None,
-        token: Optional[str] = None,
+        token_refresh_delta: int | timedelta | None = None,
+        token: str | None = None,
     ) -> None:
         self._username = username
         self._password = password
@@ -67,7 +67,7 @@ class TokenAuth(requests.auth.AuthBase):
             if token_refresh_delta is not None
             else None
         )
-        self.token: Optional[str] = token
+        self.token: str | None = token
         # Only perform a login if no token was provided directly. If a token is given, it is
         # used as-is and we only fall back to the auth_url/refresh_url when it needs refreshing.
         if self.token is None:
@@ -146,7 +146,7 @@ class TokenAuth(requests.auth.AuthBase):
                 and (now_utc() - self.auth_time) > self._token_refresh_delta
             )
 
-    def refresh_token(self, token: Optional[str] = None) -> None:
+    def refresh_token(self, token: str | None = None) -> None:
         """
         Refresh the current session either by logging in again or by refreshing the token.
 
@@ -171,7 +171,7 @@ class TokenAuth(requests.auth.AuthBase):
 
     def _refresh_hook(
         self, response: requests.Response, *args: Any, **kwargs: Any
-    ) -> Optional[requests.Response]:
+    ) -> requests.Response | None:
         """
         Check whether the login was successful and
         if it was not, it either refreshes the token or authenticates the user again.

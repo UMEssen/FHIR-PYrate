@@ -1,26 +1,26 @@
 import json
 from types import SimpleNamespace
-from typing import Any, Dict, List
+from typing import Any
 
 
 class FHIRObj(SimpleNamespace):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         for key, val in kwargs.items():
-            if isinstance(val, Dict):
+            if isinstance(val, dict):
                 setattr(self, key, FHIRObj(**val))
-            elif isinstance(val, List):
+            elif isinstance(val, list):
                 setattr(
-                    self, key, [FHIRObj(**v) if isinstance(v, Dict) else v for v in val]
+                    self, key, [FHIRObj(**v) if isinstance(v, dict) else v for v in val]
                 )
 
     def __getattr__(self, item: str) -> None:
         return None
 
-    def __getstate__(self) -> Dict[str, Any]:
+    def __getstate__(self) -> dict[str, Any]:
         return self.__dict__
 
-    def __setstate__(self, state: Dict[str, Any]) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
 
     def to_json(self) -> str:

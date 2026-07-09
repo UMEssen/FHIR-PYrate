@@ -1,6 +1,6 @@
 import re
 from importlib import import_module
-from typing import Any, Tuple
+from typing import Any
 
 PACKAGE_TO_CLASS = {
     "spacy": "miner",
@@ -38,7 +38,7 @@ def optional_import(
     name: str = "",
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     allow_namespace_pkg: bool = False,
-) -> Tuple[Any, bool]:
+) -> tuple[Any, bool]:
     """
     Import an optional module specified by `module` string.
     Any importing related exceptions will be stored, and exceptions raise lazily
@@ -51,10 +51,7 @@ def optional_import(
     :return: The imported module and a boolean flag indicating whether the import is successful.
     """
     tb = None
-    if name:
-        actual_cmd = f"from {module} import {name}"
-    else:
-        actual_cmd = f"import {module}"
+    actual_cmd = f"from {module} import {name}" if name else f"import {module}"
     try:
         the_module = import_module(module)
         if not allow_namespace_pkg:

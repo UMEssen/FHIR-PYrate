@@ -1,5 +1,4 @@
-# See https://gitlab.uk-essen.de/ship-ai/templates/pre-commit-hooks
-
+exclude: ^tests/
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.12

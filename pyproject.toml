@@ -68,26 +68,32 @@ target-version = "py310"
 # Same as Black
 line-length = 88
 lint.select = [
+  "ARG",  # Unused arguments
   "B",    # flake8-bugbear
   "C",    # flake8-comprehensions
-  # "D",  # pydocstyle
   "D401", # First line of docstring should be in imperative mood
   "E",    # pycodestyle errors
   "EXE",  # flake8-executable
   "F",    # pyflakes
+  "G",    # flake8-logging-format
   "I",    # isort
-  # "PL",   # pylint
+  "N",    # Naming conventions
+  "PERF", # perflint
+  "PL",   # pylint
   "RUF",  # ruff
+  "S",    # flake8-bandit (security)
+  "SIM",  # flake8-simplify
+  "UP",   # PyUpgrade
   "W",    # pycodestyle warnings
 ]
 lint.ignore = [
-  "C901",    # Too complex
-  "D100",    # Missing docstring in public module
-  "D101",    # Missing docstring in public class
-  "D104",    # Missing docstring in public package
-  "D105",    # Missing docstring in magic method
-  "E501",    # line too long, handled by black
-  "PLR2004", # Magic value used in comparison, consider replacing # with a constant variable
+  "ARG001", # Unused function argument
+  "ARG002", # Unused method argument
+  "C901",   # Too complex
+  "E501",   # line too long, handled by black
+  "N813",   # Camelcase imported as lowercase
+  "PLR",    # pylint refactoring
+  "S101",   # Use of assert detected
 ]
 lint.unfixable = [
   "F401", # Do not fix unused imports, it's annoying during development

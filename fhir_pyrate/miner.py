@@ -4,8 +4,8 @@ import re
 import subprocess
 import traceback
 import warnings
+from collections.abc import Callable
 from functools import partial
-from typing import Callable, List, Optional, Union
 
 import pandas as pd
 import spacy
@@ -29,9 +29,9 @@ class Miner:
     def __init__(
         self,
         target_regex: str,
-        negation_regex: Optional[str] = None,
-        regex_flags: Optional[Union[int, re.RegexFlag]] = None,
-        decode_text: Optional[Callable[[str], str]] = None,
+        negation_regex: str | None = None,
+        regex_flags: int | re.RegexFlag | None = None,
+        decode_text: Callable[[str], str] | None = None,
         nlp_lib: str = "de_core_news_sm",
         num_processes: int = 1,
     ) -> None:
@@ -41,7 +41,7 @@ class Miner:
         self.decode_text = decode_text
         try:
             self.nlp = spacy.load(nlp_lib)
-        except IOError:
+        except OSError:
             # NOTE: Run python -m spacy download {nlp_lib} in your docker file
             # if you are using docker
             warnings.warn(
@@ -51,13 +51,13 @@ class Miner:
                 "docker file.",
                 stacklevel=2,
             )
-            subprocess.run(
+            subprocess.run(  # noqa: S603
                 f"python3 -m spacy download {nlp_lib}".split(" "),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 shell=False,
                 check=True,
-                universal_newlines=True,
+                text=True,
             )
             self.nlp = spacy.load(nlp_lib)
             logger.debug(traceback.format_exc())
@@ -65,7 +65,7 @@ class Miner:
         self.num_processes = num_processes
 
     @staticmethod
-    def _remove_header(sentences: List[Span], main_document_keyword: str) -> List[Span]:
+    def _remove_header(sentences: list[Span], main_document_keyword: str) -> list[Span]:
         """
         Remove all sentences that come before a sentence that contains the `main_document_keyword`.
         This is useful when a document has a header, and we know what the first viable word of a
@@ -87,8 +87,8 @@ class Miner:
     def _check_diagnostic_report(
         self,
         report_text: str,
-        main_document_keyword: Optional[str] = "",
-    ) -> Optional[List[Span]]:
+        main_document_keyword: str | None = "",
+    ) -> list[Span] | None:
         """
         Check whether a report contains the relevant RegEx and does not contain the negation
         RegEx (if specified).
@@ -130,7 +130,7 @@ class Miner:
         df: pd.DataFrame,
         text_column_name: str,
         new_column_name: str = "text_found",
-        main_document_keyword: Optional[str] = None,
+        main_document_keyword: str | None = None,
     ) -> pd.DataFrame:
         """
         Search the strings contained in `text_column_name` for the selected RegEx, and adds two

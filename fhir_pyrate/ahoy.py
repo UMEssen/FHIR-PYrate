@@ -3,7 +3,6 @@ import logging
 import os
 from datetime import timedelta
 from types import TracebackType
-from typing import Optional, Type, Union
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -42,15 +41,15 @@ class Ahoy:
 
     def __init__(
         self,
-        auth_url: Optional[str] = None,
-        auth_type: Optional[str] = "token",
-        refresh_url: Optional[str] = None,
-        username: Optional[str] = None,
-        auth_method: Optional[str] = "password",
-        token: Optional[str] = None,
+        auth_url: str | None = None,
+        auth_type: str | None = "token",
+        refresh_url: str | None = None,
+        username: str | None = None,
+        auth_method: str | None = "password",
+        token: str | None = None,
         max_login_attempts: int = 5,
-        token_refresh_delta: Optional[Union[int, timedelta]] = None,
-        session: Optional[requests.Session] = None,
+        token_refresh_delta: int | timedelta | None = None,
+        session: requests.Session | None = None,
     ) -> None:
         self.auth_type = auth_type
         self.auth_method = auth_method
@@ -58,7 +57,7 @@ class Ahoy:
         self.refresh_url = refresh_url
         self.username = username
         self._user_env_name = "FHIR_USER"
-        self._pass_env_name = "FHIR_PASSWORD"
+        self._pass_env_name = "FHIR_PASSWORD"  # noqa: S105
         self.token = token
         if session is None:
             self.session = requests.Session()
@@ -79,14 +78,14 @@ class Ahoy:
 
     def __exit__(
         self,
-        exctype: Optional[Type[BaseException]],
-        excinst: Optional[BaseException],
-        exctb: Optional[TracebackType],
+        exctype: type[BaseException] | None,
+        excinst: BaseException | None,
+        exctb: TracebackType | None,
     ) -> None:
         self.close()
 
     def change_environment_variable_name(
-        self, user_env: Optional[str] = None, pass_env: Optional[str] = None
+        self, user_env: str | None = None, pass_env: str | None = None
     ) -> None:
         """
         Change the name of the variables used to retrieve username and password.

@@ -25,10 +25,8 @@ def string_from_column(
     :param sort_reverse: Whether the values should sorted in reverse order
     :return: A string containing the values of the Series.
     """
-    existing_values = []
-    for el in col.values:
-        if not pd.isnull(el) and el != "":
-            existing_values.append(el)
+    existing_values = [el for el in col.values if not pd.isnull(el) and el != ""]
+
     if unique:
         existing_values = list(set(existing_values))
     if len(existing_values) == 0:
