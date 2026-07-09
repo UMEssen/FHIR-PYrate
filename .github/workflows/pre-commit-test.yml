@@ -28,10 +28,10 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -41,10 +41,11 @@ jobs:
           pip install uv
           uv sync --group dev --extra all
 
-      - name: Run pre-commit
+      - if: matrix.python-version == '3.10'
+        name: Run pre-commit
         run: |
           uv run pre-commit run -a
 
       - name: Run pytest
         run: |
-          uv run pytest -q
+          uv run pytest

@@ -1,6 +1,7 @@
 import logging
 import warnings
-from typing import Any, Callable, Dict, List, Tuple
+from collections.abc import Callable
+from typing import Any
 
 from fhir_pyrate.util import FHIRObj
 
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def flatten_data(
     bundle: FHIRObj, col_sep: str = "_"
-) -> Dict[str, List[Dict[str, Any]]]:
+) -> dict[str, list[dict[str, Any]]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes
@@ -18,11 +19,11 @@ def flatten_data(
     :param col_sep: The separator to use to generate the column names for the DataFrame
     :return: A dictionary containing the parsed information
     """
-    records: Dict[str, List[Dict[str, Any]]] = {}
+    records: dict[str, list[dict[str, Any]]] = {}
     for entry in bundle.entry or []:
         resource = entry.resource
         records.setdefault(resource.resourceType, [])
-        base_dict: Dict[str, Any] = {}
+        base_dict: dict[str, Any] = {}
         recurse_resource(
             resource=resource, base_dict=base_dict, field_name="", col_sep=col_sep
         )
@@ -33,7 +34,7 @@ def flatten_data(
 
 
 def recurse_resource(
-    resource: Any, base_dict: Dict[str, Any], field_name: str, col_sep: str = "_"
+    resource: Any, base_dict: dict[str, Any], field_name: str, col_sep: str = "_"
 ) -> None:
     """
     Recursively go through the resource and store the values if they do not contain other
@@ -52,7 +53,7 @@ def recurse_resource(
                 field_name=field_name + col_sep + attr,
                 col_sep=col_sep,
             )
-    elif isinstance(resource, List):
+    elif isinstance(resource, list):
         for i, element in enumerate(resource):
             recurse_resource(
                 resource=element,
@@ -70,8 +71,8 @@ def recurse_resource(
 
 
 def parse_fhir_path(
-    bundle: FHIRObj, compiled_fhir_paths: List[Tuple[str, Callable[..., Any]]]
-) -> Dict[str, List[Dict[str, Any]]]:
+    bundle: FHIRObj, compiled_fhir_paths: list[tuple[str, Callable[..., Any]]]
+) -> dict[str, list[dict[str, Any]]]:
     """
     Preprocessing function that goes through the JSON bundle and returns lists of dictionaries
     for all possible attributes, which have been specified using a list of compiled FHIRPath
@@ -85,11 +86,11 @@ def parse_fhir_path(
     functions for notes on how to use the FHIR paths.
     :return: A dictionary containing the parsed information
     """
-    records: Dict[str, List[Dict[str, Any]]] = {}
+    records: dict[str, list[dict[str, Any]]] = {}
     for entry in bundle.entry or []:
         resource = entry.resource
         records.setdefault(resource.resourceType, [])
-        base_dict: Dict[str, Any] = {}
+        base_dict: dict[str, Any] = {}
         for name, compiled_path in compiled_fhir_paths:
             result = compiled_path(resource=resource.to_dict())
             if name in base_dict and base_dict[name] is not None and len(result) > 0:
@@ -100,7 +101,7 @@ def parse_fhir_path(
                 )
             if name not in base_dict or base_dict[name] is None:
                 base_dict[name] = result
-            if isinstance(base_dict[name], List):
+            if isinstance(base_dict[name], list):
                 if len(base_dict[name]) == 0:
                     base_dict[name] = None
                 elif len(base_dict[name]) == 1:

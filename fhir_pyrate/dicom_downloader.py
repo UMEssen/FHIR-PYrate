@@ -12,21 +12,14 @@ import sys
 import tempfile
 import traceback
 import warnings
+from collections.abc import Generator
 from contextlib import contextmanager
 from ctypes.util import find_library
 from functools import partial
 from types import TracebackType
 from typing import (
     ClassVar,
-    Dict,
-    FrozenSet,
-    Generator,
-    List,
-    Optional,
     TextIO,
-    Tuple,
-    Type,
-    Union,
 )
 
 import pandas as pd
@@ -48,7 +41,7 @@ logger = logging.getLogger(__name__)
 # https://github.com/hankcs/HanLP/blob/doc-zh/hanlp/utils/io_util.py
 try:
     # Windows succeeds, POSIX raises
-    libc: Optional[ctypes.CDLL] = ctypes.cdll.msvcrt  # Windows
+    libc: ctypes.CDLL | None = ctypes.cdll.msvcrt  # Windows
 except (OSError, AttributeError):
     # POSIX fallback — "libc.so.*" on Linux, "libc.dylib" on macOS
     c_name = find_library("c")
@@ -60,11 +53,11 @@ def flush(stream: TextIO) -> None:
         assert libc is not None
         libc.fflush(None)
         stream.flush()
-    except (AttributeError, ValueError, IOError, AssertionError):
+    except (OSError, AttributeError, ValueError, AssertionError):
         pass  # unsupported
 
 
-def fileno(file_or_fd: TextIO) -> Optional[int]:
+def fileno(file_or_fd: TextIO) -> int | None:
     try:
         fd = getattr(file_or_fd, "fileno", lambda: file_or_fd)()
     except io.UnsupportedOperation:
@@ -76,8 +69,8 @@ def fileno(file_or_fd: TextIO) -> Optional[int]:
 
 @contextmanager
 def stdout_redirected(
-    to: Union[str, TextIO] = os.devnull, stdout: Optional[TextIO] = None
-) -> Generator[Optional[TextIO], None, None]:
+    to: str | TextIO = os.devnull, stdout: TextIO | None = None
+) -> Generator[TextIO | None, None, None]:
     if platform.system() == "Windows":
         yield None
         return
@@ -146,7 +139,7 @@ class DicomDownloader:
     :param num_processes: The number of processes to run for downloading
     """
 
-    ACCEPTED_FORMATS: ClassVar[FrozenSet[str]] = frozenset(
+    ACCEPTED_FORMATS: ClassVar[frozenset[str]] = frozenset(
         {
             ".dcm",
             ".nia",
@@ -168,7 +161,7 @@ class DicomDownloader:
 
     def __init__(
         self,
-        auth: Optional[Union[requests.Session, Ahoy]],
+        auth: requests.Session | Ahoy | None,
         dicom_web_url: str,
         output_format: str = ".nii.gz",
         use_compression: bool = False,
@@ -242,16 +235,16 @@ class DicomDownloader:
 
     def __exit__(
         self,
-        exctype: Optional[Type[BaseException]],
-        excinst: Optional[BaseException],
-        exctb: Optional[TracebackType],
+        exctype: type[BaseException] | None,
+        excinst: BaseException | None,
+        exctb: TracebackType | None,
     ) -> None:
         self.close()
 
     @staticmethod
     def get_download_id(
         study_uid: str,
-        series_uid: Optional[str] = None,
+        series_uid: str | None = None,
         always_download_in_study_folder: bool = False,
     ) -> str:
         """
@@ -278,7 +271,7 @@ class DicomDownloader:
         :param download_id: The download ID of the current series/study.
         :return: A path describing where the data will be stored.
         """
-        current_path = pathlib.Path("")
+        current_path = pathlib.Path()
         i = 0
         while i < self.hierarchical_storage:
             current_path /= download_id[i * 2 : (i + 1) * 2]
@@ -289,11 +282,11 @@ class DicomDownloader:
     def download_data(
         self,
         study_uid: str,
-        series_uid: Optional[str] = None,
-        output_dir: Union[str, pathlib.Path] = "out",
+        series_uid: str | None = None,
+        output_dir: str | pathlib.Path = "out",
         save_metadata: bool = True,
-        existing_ids: Optional[List[str]] = None,
-    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        existing_ids: list[str] | None = None,
+    ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
         """
         Download the data related to the StudyInstanceUID and SeriesInstanceUID (if given,
         otherwise the entire study will be downloaded).
@@ -308,8 +301,8 @@ class DicomDownloader:
         identified IDs; Second, the studies that have failed to download together with some
         additional information such as the type of error and the traceback
         """
-        downloaded_series_info: List[Dict[str, str]] = []
-        error_series_info: List[Dict[str, str]] = []
+        downloaded_series_info: list[dict[str, str]] = []
+        error_series_info: list[dict[str, str]] = []
         # Generate a hash of key/series which will be the ID of this download
         download_id = self.get_download_id(
             study_uid=study_uid,
@@ -320,7 +313,7 @@ class DicomDownloader:
         recompute = (
             download_id not in existing_ids if existing_ids is not None else False
         )
-        logger.info(f"{get_datetime()} Current download ID: {download_id}")
+        logger.info("%s Current download ID: %s", get_datetime(), download_id)
 
         series_download_dir = pathlib.Path(output_dir) / self.get_download_path(
             download_id
@@ -331,8 +324,9 @@ class DicomDownloader:
             and not recompute
         ):
             logger.info(
-                f"Study {download_id} has been already downloaded in "
-                f"{series_download_dir}, skipping..."
+                "Study %s has been already downloaded in %s, skipping...",
+                download_id,
+                series_download_dir,
             )
             return downloaded_series_info, error_series_info
 
@@ -366,7 +360,7 @@ class DicomDownloader:
             ):
                 logger.debug(traceback.format_exc())
                 progress_bar.close()
-                logger.info(f"Study {download_id} could not be fully downloaded.")
+                logger.info("Study %s could not be fully downloaded.", download_id)
                 base_dict[self.error_type_field] = "Download Error"
                 base_dict[self.traceback_field] = traceback.format_exc()
                 return [], [base_dict]
@@ -374,7 +368,7 @@ class DicomDownloader:
 
             # Get Series ID names from folder
             series_uids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(current_tmp_dir))
-            logger.info(f"Study ID has {len(series_uids)} series.")
+            logger.info("Study ID has %s series.", len(series_uids))
             for series in series_uids:
                 # Get the DICOMs corresponding to the series
                 files = series_reader.GetGDCMSeriesFileNames(
@@ -418,8 +412,9 @@ class DicomDownloader:
                     if self.turn_off_checks:
                         if self._output_format != ".dcm":
                             logger.info(
-                                f"Problems occurred when converting {series} to NIFTI, "
-                                f"it will be stored as DICOM instead."
+                                "Problems occurred when converting %s to NIFTI, "
+                                "it will be stored as DICOM instead.",
+                                series,
                             )
                         series_download_dir.mkdir(exist_ok=True, parents=True)
                         for dcm_file in files:
@@ -430,7 +425,7 @@ class DicomDownloader:
                         current_dict[self.error_type_field] = "Storing Warning"
                     else:
                         logger.debug(traceback.format_exc())
-                        logger.info(f"Series {series} could not be stored.")
+                        logger.info("Series %s could not be stored.", series)
                         current_dict[self.error_type_field] = "Storing Error"
                     current_dict[self.traceback_field] = traceback.format_exc()
                     error_series_info.append(current_dict)
@@ -455,12 +450,12 @@ class DicomDownloader:
     def fix_mapping_dataframe(
         self,
         df: pd.DataFrame,
-        mapping_df: Optional[pd.DataFrame] = None,
-        output_dir: Union[str, pathlib.Path] = "out",
+        mapping_df: pd.DataFrame | None = None,
+        output_dir: str | pathlib.Path = "out",
         study_uid_col: str = "study_instance_uid",
         series_uid_col: str = "series_instance_uid",
         skip_existing: bool = True,
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """
         Go through the already downloaded data and check if there are some instances that have
         not been stored in the mapping file. A new mapping file will be returned. If the output
@@ -475,7 +470,7 @@ class DicomDownloader:
         :return: The fixed mapping DataFrame or None (if output data does not exist)
         """
         output_dir = pathlib.Path(output_dir)
-        if not output_dir.exists() or not len(list(output_dir.glob("*"))):
+        if not output_dir.exists() or not list(output_dir.glob("*")):
             warnings.warn(
                 "Cannot fix the mapping file if the output directory does not exist.",
                 stacklevel=2,
@@ -519,17 +514,17 @@ class DicomDownloader:
                 current_dict[self.deid_study_instance_uid_field] = destudy
                 current_dict[self.deid_series_instance_uid_field] = deseries
                 csv_rows.append(current_dict)
-        logger.info(f"{len(csv_rows)} have been fixed.")
+        logger.info("%s have been fixed.", len(csv_rows))
         new_df = pd.concat([mapping_df, pd.DataFrame(csv_rows)])
         return new_df
 
     def _download_helper(
         self,
-        uids: Tuple[str, Optional[str]],
-        existing_ids: Optional[List[str]],
+        uids: tuple[str, str | None],
+        existing_ids: list[str] | None,
         output_dir: pathlib.Path,
         save_metadata: bool = True,
-    ) -> Tuple[Optional[List[Dict[str, str]]], Optional[List[Dict[str, str]]]]:
+    ) -> tuple[list[dict[str, str]] | None, list[dict[str, str]] | None]:
         study_uid, series_uid = uids
         with logging_redirect_tqdm():
             try:
@@ -558,13 +553,13 @@ class DicomDownloader:
     def download_data_from_dataframe(
         self,
         df: pd.DataFrame,
-        output_dir: Union[str, pathlib.Path] = "out",
+        output_dir: str | pathlib.Path = "out",
         study_uid_col: str = "study_instance_uid",
-        series_uid_col: Optional[str] = "series_instance_uid",
-        mapping_df: Optional[pd.DataFrame] = None,
+        series_uid_col: str | None = "series_instance_uid",
+        mapping_df: pd.DataFrame | None = None,
         download_full_study: bool = False,
         save_metadata: bool = True,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         :param df: The DataFrame that contains the studies that should be downloaded
         :param output_dir: The directory where the studies are stored
