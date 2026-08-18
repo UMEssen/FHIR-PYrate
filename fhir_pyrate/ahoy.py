@@ -1,12 +1,14 @@
 import getpass
 import logging
 import os
+import pathlib
 from datetime import timedelta
 from types import TracebackType
 
 import requests
 from requests.auth import HTTPBasicAuth
 
+from fhir_pyrate.util.device_code_auth import DeviceCodeAuth
 from fhir_pyrate.util.token_auth import TokenAuth
 
 logger = logging.getLogger(__name__)
@@ -14,18 +16,23 @@ logger = logging.getLogger(__name__)
 
 class Ahoy:
     """
-    Simple authentication class that supports token authentication and BasicAuth.
+    Simple authentication class that supports token authentication, BasicAuth and the
+    OAuth 2.0 Device Authorization Grant.
 
-    :param auth_url: The URL to use for authentication
-    :param auth_type: The kind of authentication, for now only "token" and "BasicAuth" are
-    supported.
+    :param auth_url: The URL to use for authentication; for the "device_code"
+    authentication type this is the OpenID Connect issuer URL (e.g.
+    https://keycloak.example.com/realms/example-realm)
+    :param auth_type: The kind of authentication, for now "token", "BasicAuth" and
+    "device_code" are supported.
     :param refresh_url:  The URL to use to refresh the token
     :param username: The username to use for the authentication (for the password authentication
     method)
     :param auth_method: The options are [password, env, keyring]:
     password will use the given username as username and ask to input a password;
     env will use the environment variables FHIR_USER and FHIR_PASSWORD;
-    keyring will use a keyring [NOT IMPLEMENTED YET]
+    keyring will use a keyring [NOT IMPLEMENTED YET].
+    This parameter is ignored by the "device_code" authentication type, which never
+    needs a password.
     :param token: A pre-existing token to use for authentication. If this is given, no login is
     performed and the token is used as-is, so the username/password/auth_method variables do not
     need to be specified. An auth_url and/or refresh_url are then only needed if the token should
@@ -37,6 +44,16 @@ class Ahoy:
     :param session: The session that can be used for the authentication. This is particularly
     useful if you have some particular requirements for your authentication (e.g. you need to
     support for cusum self-signed certificates).
+    :param client_id: The OAuth client ID (only for the "device_code" authentication
+    type)
+    :param client_secret: The OAuth client secret, only needed for confidential clients
+    (only for the "device_code" authentication type)
+    :param scope: The OAuth scope(s) to request, space-separated, e.g. "offline_access"
+    (only for the "device_code" authentication type)
+    :param token_cache: An optional path to a file where the tokens of the device flow
+    are stored, so that new runs can reuse the previous sign-in instead of opening the
+    browser again; treat this file like a credential (only for the "device_code"
+    authentication type)
     """
 
     def __init__(
@@ -50,6 +67,10 @@ class Ahoy:
         max_login_attempts: int = 5,
         token_refresh_delta: int | timedelta | None = None,
         session: requests.Session | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        scope: str | None = None,
+        token_cache: str | pathlib.Path | None = None,
     ) -> None:
         self.auth_type = auth_type
         self.auth_method = auth_method
@@ -65,8 +86,18 @@ class Ahoy:
             self.session = session
         self.max_login_attempts = max_login_attempts
         self.token_refresh_delta = token_refresh_delta
+        self.client_id = client_id
+        self._client_secret = client_secret
+        self.scope = scope
+        self.token_cache = token_cache
         if self.token is not None or (
-            self.auth_type is not None and self.auth_method is not None
+            self.auth_type is not None
+            and (
+                self.auth_method is not None
+                # The device flow needs no username/password, so it must not depend
+                # on an auth_method being set.
+                or self.auth_type.lower() == "device_code"
+            )
         ):
             self._authenticate()
 
@@ -117,6 +148,25 @@ class Ahoy:
                 max_login_attempts=self.max_login_attempts,
                 token_refresh_delta=self.token_refresh_delta,
                 token=self.token,
+            )
+            return
+        if self.auth_type.lower() == "device_code":
+            if self.auth_url is None:
+                raise ValueError(
+                    "The device_code authentication type needs an auth_url that "
+                    "points to the OpenID Connect issuer, e.g. "
+                    "https://keycloak.example.com/realms/example-realm."
+                )
+            if self.client_id is None:
+                raise ValueError(
+                    "The device_code authentication type needs a client_id."
+                )
+            self.session.auth = DeviceCodeAuth(
+                client_id=self.client_id,
+                issuer_url=self.auth_url,
+                client_secret=self._client_secret,
+                scope=self.scope,
+                token_cache=self.token_cache,
             )
             return
         assert self.auth_method is not None
