@@ -22,7 +22,8 @@ There are four main classes:
 * [Ahoy](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/ahoy.py): Authenticate on the FHIR API
 ([Example 1](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/1-simple-json-to-df.ipynb),
 [2](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/2-condition-to-imaging-study.ipynb)),
-at the moment only BasicAuth and token authentication are supported.
+at the moment BasicAuth, token authentication and the OAuth 2.0 Device Authorization
+Grant (e.g. for servers behind Keycloak or another OpenID Connect provider) are supported.
 * [Pirate](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py): Extract and search for data via FHIR
   API
   ([Example 1](https://github.com/UMEssen/FHIR-PYrate/blob/main/examples/1-simple-json-to-df.ipynb),
@@ -157,6 +158,43 @@ We accept the following authentication methods:
   the unit tests). You can also change their names with the `change_environment_variable_name`
   function.
 * **keyring**: To Be Implemented.
+
+#### Device flow (OAuth 2.0 Device Authorization Grant)
+
+If your FHIR server or DICOMweb gateway sits behind an OpenID Connect provider
+(e.g. Keycloak, often via a proxy such as
+[oauth2-proxy](https://github.com/oauth2-proxy/oauth2-proxy) — this is for example how
+[DICOM-RST](https://github.com/UMEssen/DICOM-RST) deployments are commonly secured),
+use the `device_code` authentication type. Your script prints a URL, you approve the
+sign-in once in any browser (with the usual single sign-on of your institution), and
+the tokens are then attached and refreshed automatically — no password ever appears in
+your script or shell history:
+
+```python
+from fhir_pyrate import Ahoy
+
+auth = Ahoy(
+  auth_type="device_code",
+  auth_url="https://keycloak.example.com/realms/example-realm", # The OIDC issuer
+  client_id="example-cli", # A public client with the device grant enabled
+  # Optional: reuse the sign-in between runs instead of opening the browser again.
+  # Treat this file like a credential.
+  token_cache="~/.cache/fhir-pyrate/tokens.json",
+)
+```
+
+The resulting object can be passed as usual to both **Pirate** and **DicomDownloader**.
+For jobs that should keep running after you log off, request an offline token with
+`scope="offline_access"` (if your identity provider allows it). For unattended jobs
+that should fail instead of waiting for a browser approval nobody will give, set
+`allow_reauthentication=False`. If your identity provider rotates refresh tokens on
+every use (e.g. Keycloak's "Revoke Refresh Token" option), avoid combining the device
+flow with `num_processes > 1` — every worker holds a copy of the same refresh token,
+and the first refresh invalidates the others (see the `DeviceCodeAuth` docstring). If you need more control (custom endpoints without
+OpenID Connect discovery, a confidential client, your own prompt output or your own
+`requests.Session`), use
+[`DeviceCodeAuth`](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/util/device_code_auth.py)
+directly and attach it to a session as its `auth`.
 
 ### [Pirate](https://github.com/UMEssen/FHIR-PYrate/blob/main/fhir_pyrate/pirate.py)
 
